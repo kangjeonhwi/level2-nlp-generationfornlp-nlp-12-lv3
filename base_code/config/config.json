@@ -1,0 +1,19 @@
+{
+    "params":
+    {
+        "lr_scheduler_type" : "cosine",
+        "max_seq_length" : 1024,
+        "output_dir" : "output",
+        "train_batch_size" : 1,
+        "eval_batch_size" : 1,
+        "epoch" : 0.1,
+        "learning_rate" : "2e-5",
+        "weight_decay" : 0.01
+    },
+
+    "settings" : 
+    {
+        "model_name" : "beomi/gemma-ko-2b",
+        "dataset" : "../../data"
+    }
+}
