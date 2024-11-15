@@ -10,6 +10,7 @@ from langchain.prompts.chat import (
     HumanMessagePromptTemplate,
 )
 from tqdm import tqdm
+from ast import literal_eval
 
 class CoTDatasetEnhancer:
     def __init__(self, 
@@ -63,9 +64,7 @@ class CoTDatasetEnhancer:
             if row["reason"] is not None:
                 continue
             paragraph = row["paragraph"]
-            problems = json.loads(
-                row["problems"].replace("'", "\"")
-            )
+            problems = literal_eval(row["problems"])
             question = problems["question"]
             choices = problems["choices"]
             answer = problems["answer"]
