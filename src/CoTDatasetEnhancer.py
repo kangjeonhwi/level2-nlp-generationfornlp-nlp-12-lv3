@@ -89,7 +89,7 @@ class CoTDatasetEnhancer:
                     index, reason, cost = future.result()
                     if reason:
                         df.loc[index, "reason"] = reason
-                    total_cost = max(cost, total_cost)
+                    total_cost += cost
                     progress.set_postfix({"total_cost": f"${total_cost:.2f}"})
                 except Exception as _:
                     print(f"Error processing row {i}")  
