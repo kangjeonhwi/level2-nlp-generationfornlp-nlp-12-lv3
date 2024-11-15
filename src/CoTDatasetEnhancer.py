@@ -11,6 +11,7 @@ from langchain.prompts.chat import (
 )
 from tqdm import tqdm
 from ast import literal_eval
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class CoTDatasetEnhancer:
     def __init__(self, 
@@ -33,7 +34,27 @@ class CoTDatasetEnhancer:
         with open(secret_file, 'r') as f:
             secrets = json.load(f)
         os.environ["OPENAI_API_KEY"] = secrets["OPENAI_API_KEY"]
-        
+    
+    def _process_row(self, index, row, chain):
+        if row["reason"] is not None:
+            return index, row["reason"], 0
+        paragraph = row["paragraph"]
+        problems = literal_eval(row["problems"])
+        question = problems["question"]
+        choices = problems["choices"]
+        answer = problems["answer"]
+        try:
+            with get_openai_callback() as cb:
+                jsn = chain.invoke({
+                    "paragraph": paragraph,
+                    "question": question,
+                    "answer": answer,
+                    "choices": choices,
+                })
+                return index, jsn["reason"], cb.total_cost
+        except Exception as _:
+            return index, None, 0
+    
     def enhance(self, df):
         system_msg_prompt = SystemMessagePromptTemplate.from_template(
             self.prompts["system"][0]["content"]
@@ -58,34 +79,22 @@ class CoTDatasetEnhancer:
         df = df.copy()
         if "reason" not in df.columns:
             df["reason"] = None
-        progress = tqdm(df.iterrows(), total=len(df), desc=f"Enhancing: ")
-        total_cost = -1
-        for i, row in progress:
-            if row["reason"] is not None:
-                continue
-            paragraph = row["paragraph"]
-            problems = literal_eval(row["problems"])
-            question = problems["question"]
-            choices = problems["choices"]
-            answer = problems["answer"]
-            try:
-                with get_openai_callback() as cb:
-                    jsn = chain.invoke({
-                        "paragraph": paragraph,
-                        "question": question,
-                        "answer": answer,
-                        "choices": choices,
-                    })
-                    total_cost = cb.total_cost
-                    progress.set_postfix({
-                        "total_cost": f"${total_cost:.2f}",
-                    })
-            # catch budget issue
-            except Exception as _:
-                break
-            df.loc[i, "reason"] = jsn["reason"]  
-        print(f"Total cost: ${total_cost:.2f}")
+        total_cost = 0
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {executor.submit(self._process_row, i, row, chain): i for i, row in df.iterrows()}
+            progress = tqdm(as_completed(futures), total=len(futures), desc="Enhancing")
+            for future in progress:
+                i = futures[future]
+                try:
+                    index, reason, cost = future.result()
+                    if reason:
+                        df.loc[index, "reason"] = reason
+                    total_cost = max(cost, total_cost)
+                    progress.set_postfix({"total_cost": f"${total_cost:.2f}"})
+                except Exception as _:
+                    print(f"Error processing row {i}")  
         
+        print(f"Total cost: ${total_cost:.2f}")        
         # if any column of reason is None
         if df["reason"].isnull().sum() > 0:
             print("Some rows are not enhanced! (maybe due to budget issue)")
