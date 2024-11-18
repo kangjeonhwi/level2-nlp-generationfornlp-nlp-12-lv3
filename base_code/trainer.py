@@ -127,16 +127,8 @@ class MyTrainer:
     def train(self):
         # train task
         dataset = Dataset.from_pandas(load_dataset(pd.read_csv(self.data_path + "/train.csv")))
-        peft_config = LoraConfig(
-            r=6,
-            lora_alpha=8,
-            lora_dropout=0.05,
-            target_modules=['q_proj', 'k_proj'],
-            bias="none",
-            task_type="CAUSAL_LM",
-        )
 
-        model = AutoModelForCausalLM.from_pretrained(
+        self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
             torch_dtype=torch.float32,
             trust_remote_code=True,
@@ -166,17 +158,26 @@ class MyTrainer:
         tokenized_dataset = tokenized_dataset.filter(lambda x: len(x["input_ids"]) <= 1024)  
         tokenized_dataset = tokenized_dataset.train_test_split(test_size=0.1, seed=42)
 
-        train_dataset = tokenized_dataset['train']
-        eval_dataset = tokenized_dataset['test']
+        self.train_dataset = tokenized_dataset['train']
+        self.eval_dataset = tokenized_dataset['test']
 
         response_template = "<start_of_turn>model"
-        data_collator = DataCollatorForCompletionOnlyLM(
+        self.data_collator = DataCollatorForCompletionOnlyLM(
             response_template=response_template,
             tokenizer=self.tokenizer,
         )
         self.tokenizer.pad_token = self.tokenizer.eos_token
         self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
         self.tokenizer.padding_side = 'right'
+
+        peft_config = LoraConfig(
+            r=6,
+            lora_alpha=8,
+            lora_dropout=0.05,
+            target_modules=['q_proj', 'k_proj'],
+            bias="none",
+            task_type="CAUSAL_LM",
+        )
 
         sft_config = SFTConfig(
             do_train=True,
@@ -199,10 +200,10 @@ class MyTrainer:
         )
 
         trainer = SFTTrainer(
-            model=model,
-            train_dataset=train_dataset,
-            eval_dataset=eval_dataset,
-            data_collator=data_collator,
+            model=self.model,
+            train_dataset=self.train_dataset,
+            eval_dataset=self.eval_dataset,
+            data_collator=self.data_collator,
             tokenizer=self.tokenizer,
             compute_metrics=self.compute_metrics,
             preprocess_logits_for_metrics=self.preprocess_logits_for_metrics,
