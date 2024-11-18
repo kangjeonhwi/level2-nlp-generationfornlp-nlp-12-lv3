@@ -60,6 +60,9 @@ class MyTrainer:
         logits = logits[:, -2, logit_idx] # -2: answer token, -1: eos token
         return logits
     
+    def load_dataset(self):
+        return Dataset.from_pandas(load_dataset(pd.read_csv(self.data_path + "/train.csv")))
+    
     def process_dataset(self, dataset: Dataset) -> Dataset:
         """입력으로 들어온 dataset을 이용하여 입력 프롬프트와 그에 대한 정답을 생성합니다.
 
@@ -191,8 +194,8 @@ class MyTrainer:
 
     def train(self):
         # train task
-        dataset = Dataset.from_pandas(load_dataset(pd.read_csv(self.data_path + "/train.csv")))
-
+        dataset = self.load_dataset()
+        
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
             torch_dtype=torch.float32,
