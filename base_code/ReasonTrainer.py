@@ -1,3 +1,5 @@
+from ast import literal_eval
+
 from trainer import MyTrainer
 from config.prompts import PROMPT_GEN_REASON_NO_QUESTION_PLUS, PROMPT_GEN_REASON_QUESTION_PLUS
 
@@ -69,6 +71,25 @@ class ReasonTrainer(MyTrainer):
 
         return metric.compute(predictions=decoded_preds, references=decoded_labels)
     
+    def load_dataset(self) -> Dataset:
+        df = pd.read_csv(self.data_path + "/train.csv")
+        records = []
+        for _, row in df.iterrows():
+            problems = literal_eval(row['problems'])
+            record = {
+                'id': row['id'],
+                'paragraph': row['paragraph'],
+                'question': problems['question'],
+                'choices': problems['choices'],
+                'answer': problems.get('answer', None),
+                "question_plus": problems.get('question_plus', None),
+                "reason": row["reason"]
+            }
+            if 'question_plus' in problems:
+                record['question_plus'] = problems['question_plus']
+            records.append(record)
+        return Dataset.from_pandas(pd.DataFrame(records))
+
     def get_trainer(self) -> Trainer:
         """Trainer 객체를 생성합니다. 다음 인스턴스 변수들이 존재해야 합니다.
         - model: 훈련시킬 모델
