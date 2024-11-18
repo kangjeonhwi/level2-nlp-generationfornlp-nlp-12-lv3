@@ -5,7 +5,7 @@ import os
 from tqdm import tqdm
 import random
 import evaluate
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, Trainer
 from peft import AutoPeftModelForCausalLM, LoraConfig
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM, SFTConfig
 from datasets import Dataset
@@ -123,6 +123,71 @@ class MyTrainer:
         acc = acc_metric.compute(predictions=predictions, references=labels)
         
         return acc
+    
+    def get_trainer(self) -> Trainer:
+        """Trainer 객체를 생성합니다. 다음 인스턴스 변수들이 존재해야 합니다.
+        - model: 훈련시킬 모델
+        - train_dataset: 훈련 데이터셋
+        - eval_dataset: 검증 데이터셋
+        - data_collator: 데이터 콜레이터 함수
+        - tokenizer: 토크나이저
+        - params: 훈련에 필요한 하이퍼파라미터
+
+        Returns:
+            Trainer: Trainer 객체를 반환합니다.
+        """
+        peft_config = LoraConfig(
+            r=6,
+            lora_alpha=8,
+            lora_dropout=0.05,
+            target_modules=['q_proj', 'k_proj'],
+            bias="none",
+            task_type="CAUSAL_LM",
+        )
+
+        sft_config = SFTConfig(
+            do_train=True,
+            do_eval=False,
+            lr_scheduler_type=self.params["lr_scheduler_type"],
+            max_seq_length=self.params["max_seq_length"],
+            output_dir=self.params["output_dir"],
+            per_device_train_batch_size=self.params["train_batch_size"],
+            per_device_eval_batch_size=self.params["eval_batch_size"],
+            num_train_epochs=self.params["epoch"],
+            learning_rate=float(self.params["learning_rate"]),
+            weight_decay=self.params["weight_decay"],
+            logging_steps=100,
+            save_strategy="epoch",
+            eval_strategy="no",
+            save_total_limit=2,
+            save_only_model=True,
+            report_to="none",
+            log_level='error'
+        )
+
+        trainer = SFTTrainer(
+            model=self.model,
+            train_dataset=self.train_dataset,
+            eval_dataset=self.eval_dataset,
+            data_collator=self.data_collator,
+            tokenizer=self.tokenizer,
+            compute_metrics=self.compute_metrics,
+            preprocess_logits_for_metrics=self.preprocess_logits_for_metrics,
+            peft_config=peft_config,
+            args=sft_config
+        )
+        
+        print("-" * 30)
+        print("lr_scheduler_type : {}".format(self.params["lr_scheduler_type"]))
+        print("max_seq_length : {}".format(self.params["max_seq_length"]))
+        print("train_batch_size : {}".format(self.params["train_batch_size"]))
+        print("eval_batch_size : {}".format(self.params["eval_batch_size"]))
+        print("epoch : {}".format(self.params["epoch"]))
+        print("learning_rate : {}".format(self.params["learning_rate"]))
+        print("weight_decay : {}".format(self.params["weight_decay"]))
+        print("-" * 30)
+        
+        return trainer
 
     def train(self):
         # train task
@@ -169,57 +234,8 @@ class MyTrainer:
         self.tokenizer.pad_token = self.tokenizer.eos_token
         self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
         self.tokenizer.padding_side = 'right'
-
-        peft_config = LoraConfig(
-            r=6,
-            lora_alpha=8,
-            lora_dropout=0.05,
-            target_modules=['q_proj', 'k_proj'],
-            bias="none",
-            task_type="CAUSAL_LM",
-        )
-
-        sft_config = SFTConfig(
-            do_train=True,
-            do_eval=False,
-            lr_scheduler_type=self.params["lr_scheduler_type"],
-            max_seq_length=self.params["max_seq_length"],
-            output_dir=self.params["output_dir"],
-            per_device_train_batch_size=self.params["train_batch_size"],
-            per_device_eval_batch_size=self.params["eval_batch_size"],
-            num_train_epochs=self.params["epoch"],
-            learning_rate=float(self.params["learning_rate"]),
-            weight_decay=self.params["weight_decay"],
-            logging_steps=100,
-            save_strategy="epoch",
-            eval_strategy="no",
-            save_total_limit=2,
-            save_only_model=True,
-            report_to="none",
-            log_level='error'
-        )
-
-        trainer = SFTTrainer(
-            model=self.model,
-            train_dataset=self.train_dataset,
-            eval_dataset=self.eval_dataset,
-            data_collator=self.data_collator,
-            tokenizer=self.tokenizer,
-            compute_metrics=self.compute_metrics,
-            preprocess_logits_for_metrics=self.preprocess_logits_for_metrics,
-            peft_config=peft_config,
-            args=sft_config
-        )
-
-        print("-" * 30)
-        print("lr_scheduler_type : {}".format(self.params["lr_scheduler_type"]))
-        print("max_seq_length : {}".format(self.params["max_seq_length"]))
-        print("train_batch_size : {}".format(self.params["train_batch_size"]))
-        print("eval_batch_size : {}".format(self.params["eval_batch_size"]))
-        print("epoch : {}".format(self.params["epoch"]))
-        print("learning_rate : {}".format(self.params["learning_rate"]))
-        print("weight_decay : {}".format(self.params["weight_decay"]))
-        print("-" * 30)
+        
+        trainer = self.get_trainer()
         
         trainer.train()
         final_metrics = trainer.evaluate()
