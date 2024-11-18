@@ -3,7 +3,8 @@ from config.prompts import PROMPT_GEN_REASON_NO_QUESTION_PLUS, PROMPT_GEN_REASON
 
 import pandas as pd
 from transformers import Trainer
-from datasets import Dataset, load_metric
+from datasets import Dataset
+from evaluate import load
 from peft import LoraConfig
 from trl import SFTTrainer, SFTConfig
 
@@ -54,7 +55,7 @@ class ReasonTrainer(MyTrainer):
         return Dataset.from_pandas(pd.DataFrame(processed_dataset))
 
     def compute_metrics(self, eval_preds):
-        metric = load_metric("sacrebleu")  # BLEU 평가 지표
+        metric = load("bleu")  # BLEU 평가 지표
         logits, labels = eval_preds
         predictions = logits.argmax(dim=-1)
 
