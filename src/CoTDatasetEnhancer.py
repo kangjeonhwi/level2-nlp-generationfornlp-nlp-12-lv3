@@ -12,23 +12,25 @@ from langchain.prompts.chat import (
 from tqdm import tqdm
 from ast import literal_eval
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from prompts.enhancer import PROMPT_SYSTEM, PROMPT_USER
 
 class CoTDatasetEnhancer:
     def __init__(self, 
                  model_name: str = "gpt-4o",
                  temperature = 0.9,
-                 prompt: str = "prompts/enhancer.json",
                  ):
         self._set_secret_key()
-        self.prompts = self._load_prompt(prompt)
+        self.prompts = self._load_prompt()
         self.llm = ChatOpenAI(
             model_name = model_name,
             temperature = temperature
         )
     
-    def _load_prompt(self, prompt: str):
-        with open(prompt, 'r', encoding="utf-8") as f:
-            return json.load(f)
+    def _load_prompt(self):
+        return {
+            "system": PROMPT_SYSTEM,
+            "user": PROMPT_USER
+        }
         
     def _set_secret_key(self, secret_file: str = "secrets.json"):
         with open(secret_file, 'r') as f:
@@ -57,13 +59,13 @@ class CoTDatasetEnhancer:
     
     def enhance(self, df):
         system_msg_prompt = SystemMessagePromptTemplate.from_template(
-            self.prompts["system"][0]["content"]
+            self.prompts["system"]
         )
         
         parser = JsonOutputParser()
         
         human_msg_prompt = HumanMessagePromptTemplate.from_template(
-            self.prompts["user"][0]["content"]
+            self.prompts["user"]
         )
         
         chat_prompt = ChatPromptTemplate(
