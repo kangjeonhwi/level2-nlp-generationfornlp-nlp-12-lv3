@@ -60,6 +60,52 @@ class MyTrainer:
         logits = logits[:, -2, logit_idx] # -2: answer token, -1: eos token
         return logits
     
+    def process_dataset(self, dataset: Dataset) -> Dataset:
+        """입력으로 들어온 dataset을 이용하여 입력 프롬프트와 그에 대한 정답을 생성합니다.
+
+        Args:
+            dataset (Dataset): 입력으로 들어온 dataset. 아래 필드를 포함하고 있어야 합니다.
+            (id-식별자, 지문-paragraph, 질문-question, 선지-choices, 보기-question_plus,정답-answer)
+        
+        Returns:
+            Dataset: 아래 필드를 포함하고 있는 dataset을 반환합니다.
+            (id-식별자, messages-프롬프트를 위한 message, label-정답)
+        """
+        processed_dataset = []
+        for i in range(len(dataset)):
+            choices_string = "\n".join([f"{idx + 1} - {choice}" for idx, choice in enumerate(dataset[i]["choices"])])
+
+            # <보기>가 있을 때
+            if dataset[i]["question_plus"]:
+                user_message = config_prompts.PROMPT_QUESTION_PLUS.format(
+                    paragraph=dataset[i]["paragraph"],
+                    question=dataset[i]["question"],
+                    question_plus=dataset[i]["question_plus"],
+                    choices=choices_string,
+                )
+            # <보기>가 없을 때
+            else:
+                user_message = config_prompts.PROMPT_NO_QUESTION_PLUS.format(
+                    paragraph=dataset[i]["paragraph"],
+                    question=dataset[i]["question"],
+                    choices=choices_string,
+                )
+
+            # chat message 형식으로 변환
+            processed_dataset.append(
+                {
+                    "id": dataset[i]["id"],
+                    "messages": [
+                        {"role": "system", "content": "지문을 읽고 질문의 답을 구하세요."},
+                        {"role": "user", "content": user_message},
+                        {"role": "assistant", "content": f"{dataset[i]['answer']}"}
+                    ],
+                    "label": dataset[i]["answer"],
+                }
+            )
+        
+        return Dataset.from_pandas(pd.DataFrame(processed_dataset))
+    
     def compute_metrics(self, evaluation_result):
         int_output_map = {"1": 0, "2": 1, "3": 2, "4": 3, "5": 4}
         acc_metric = evaluate.load("accuracy")
@@ -103,41 +149,9 @@ class MyTrainer:
         )
         tokenizer.chat_template = config_prompts.TEMPLATE
         
-        processed_dataset = []
-        for i in range(len(dataset)):
-            choices_string = "\n".join([f"{idx + 1} - {choice}" for idx, choice in enumerate(dataset[i]["choices"])])
-
-            # <보기>가 있을 때
-            if dataset[i]["question_plus"]:
-                user_message = config_prompts.PROMPT_QUESTION_PLUS.format(
-                    paragraph=dataset[i]["paragraph"],
-                    question=dataset[i]["question"],
-                    question_plus=dataset[i]["question_plus"],
-                    choices=choices_string,
-                )
-            # <보기>가 없을 때
-            else:
-                user_message = config_prompts.PROMPT_NO_QUESTION_PLUS.format(
-                    paragraph=dataset[i]["paragraph"],
-                    question=dataset[i]["question"],
-                    choices=choices_string,
-                )
-
-            # chat message 형식으로 변환
-            processed_dataset.append(
-                {
-                    "id": dataset[i]["id"],
-                    "messages": [
-                        {"role": "system", "content": "지문을 읽고 질문의 답을 구하세요."},
-                        {"role": "user", "content": user_message},
-                        {"role": "assistant", "content": f"{dataset[i]['answer']}"}
-                    ],
-                    "label": dataset[i]["answer"],
-                }
-            )
+        processed_dataset = self.process_dataset(dataset)
 
         self.tokenizer = tokenizer
-        processed_dataset = Dataset.from_pandas(pd.DataFrame(processed_dataset))
         tokenized_dataset = processed_dataset.map(
             self.tokenize,
             remove_columns=list(processed_dataset.features),
