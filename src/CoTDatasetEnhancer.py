@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class CoTDatasetEnhancer:
     def __init__(self, 
-                 model_name: str = "gpt-4o-mini",
+                 model_name: str = "gpt-4o",
                  temperature = 0.9,
                  prompt: str = "prompts/enhancer.json",
                  ):
