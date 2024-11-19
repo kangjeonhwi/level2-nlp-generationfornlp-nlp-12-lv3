@@ -11,9 +11,10 @@ import config.prompts as config_prompts
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 class MyInference:
-    def __init__(self, data_path, chk_path):
+    def __init__(self, data_path, chk_path, zero_shot_cot):
         self.data_path = data_path + "/test.csv"
         self.checkpoint_path = chk_path
+        self.zero_shot_cot = zero_shot_cot
 
     def inference(self):
         dataset = load_dataset(pd.read_csv(self.data_path))
