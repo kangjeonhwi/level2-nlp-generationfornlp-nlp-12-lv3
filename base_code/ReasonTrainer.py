@@ -55,7 +55,7 @@ class ReasonTrainer(MyTrainer):
         return Dataset.from_pandas(pd.DataFrame(processed_dataset))
 
     # 모델의 logits 를 조정하여 정답 토큰 부분만 출력하도록 설정
-    def preprocess_logits_for_metrics(logits, labels):
+    def preprocess_logits_for_metrics(self, logits, labels):
         # 로짓에서 가장 높은 확률의 토큰 인덱스를 추출 (argmax)
         predictions = logits.argmax(dim=-1)
         # print(predictions)
