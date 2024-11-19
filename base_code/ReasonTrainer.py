@@ -105,6 +105,11 @@ class ReasonTrainer(MyTrainer):
             records.append(record)
         return Dataset.from_pandas(pd.DataFrame(records))
     
+    def report_metrics(self, metrics):
+        print("-" * 30)
+        print("BLEU Score: ", metrics["bleu"])
+        print("-" * 30)
+
 
 if __name__ == "__main__":
     import argparse

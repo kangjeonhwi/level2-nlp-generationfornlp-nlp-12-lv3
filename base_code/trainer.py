@@ -192,6 +192,11 @@ class MyTrainer:
         
         return trainer
 
+    def report_metrics(self, metrics):
+        print("-" * 30)
+        print("Evaluation Accuracy : {:.4f}".format(metrics["eval_accuracy"]))
+        print("-" * 30)
+
     def train(self):
         # train task
         dataset = self.load_dataset()
@@ -242,7 +247,4 @@ class MyTrainer:
         
         trainer.train()
         final_metrics = trainer.evaluate()
-
-        print("-" * 30)
-        print("Evaluation Accuracy : {:.4f}".format(final_metrics["eval_accuracy"]))
-        print("-" * 30)
+        self.report_metrics(final_metrics)
