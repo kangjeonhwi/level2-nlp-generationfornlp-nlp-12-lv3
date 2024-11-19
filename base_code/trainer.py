@@ -105,7 +105,7 @@ class MyTrainer:
         tokenizer.chat_template = config_prompts.TEMPLATE
         
         processed_dataset = []
-        for i in range(len(dataset)):
+        for i in tqdm(range(len(dataset))):
             choices_string = "\n".join([f"{idx + 1} - {choice}" for idx, choice in enumerate(dataset[i]["choices"])])
 
             # <보기>가 있을 때

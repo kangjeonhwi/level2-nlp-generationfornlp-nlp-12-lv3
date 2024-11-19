@@ -29,7 +29,7 @@ class MyInference:
             trust_remote_code=True,
         )
         test_dataset = []
-        for i, row in dataset.iterrows():
+        for i, row in tqdm(dataset.iterrows()):
             choices_string = "\n".join([f"{idx + 1} - {choice}" for idx, choice in enumerate(row["choices"])])
             len_choices = len(row["choices"])
 
