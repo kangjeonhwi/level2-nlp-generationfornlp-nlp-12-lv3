@@ -48,6 +48,14 @@ class MyInference:
                     choices=choices_string,
                 )
 
+            if self.zero_shot_cot:
+                user_message.replace("정답:", "")
+                tmp_user_message = user_message + "단계별로 생각하여 답을 구하세요."
+                response = self.model.generate(self.tokenizer(tmp_user_message, return_tensors="pt").input_ids.to(DEVICE), max_length=512)
+                generated_text = self.tokenizer.decode(response[0], skip_special_tokens=True)
+                print(generated_text)
+                user_message += generated_text + " 따라서 정답:"
+
             test_dataset.append(
                 {
                     "id": row["id"],
@@ -94,6 +102,14 @@ class MyInference:
 
                 predict_value = pred_choices_map[np.argmax(probs, axis=-1)]
                 infer_results.append({"id": _id, "answer": predict_value})
+
+                # Clear cache to save memory
+                del outputs
+                del logits
+                del target_logit_list
+                del probs
+                torch.cuda.empty_cache()
+                
         pd.DataFrame(infer_results).to_csv("output.csv", index=False)
         print("Successfully saved the output csv file!")
     
@@ -102,9 +118,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default="./config/config", help="path where config json is store")
     parser.add_argument("--checkpoint", type=str, default="./output/checkpoint-7485", help="path where checkpoint dir is store")
+    parser.add_argument("--zero_shot_cot", type=bool, default=False, help="use zero_shot_cot or not")
+
     args = parser.parse_args()
     config = load_config(args.config)
     data_path = config["settings"]["dataset"]
-    myinference = MyInference(data_path, args.checkpoint)
+    myinference = MyInference(data_path, args.checkpoint, args.zero_shot_cot)
     myinference.inference()
     

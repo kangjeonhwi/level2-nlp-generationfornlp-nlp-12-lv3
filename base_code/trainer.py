@@ -24,10 +24,11 @@ torch.backends.cudnn.benchmark = False
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 class MyTrainer:
-    def __init__(self, data_path, model_name, params):
+    def __init__(self, data_path, model_name, params, zero_shot_cot):
         self.data_path = data_path
         self.model_name = model_name
         self.params = params
+        self.zero_shot_cot = zero_shot_cot
 
     def formatting_prompts_func(self, example):
         output_texts = []
@@ -122,6 +123,14 @@ class MyTrainer:
                     question=dataset[i]["question"],
                     choices=choices_string,
                 )
+            
+            if self.zero_shot_cot:
+                user_message.replace("정답:", "")
+                tmp_user_message = user_message + "단계별로 생각하여 답을 구하세요."
+                response = self.model.generate(self.tokenizer(tmp_user_message, return_tensors="pt").input_ids.to(DEVICE), max_length=512)
+                generated_text = self.tokenizer.decode(response[0], skip_special_tokens=True)
+                print(generated_text)
+                user_message += generated_text + " 따라서 정답:"
 
             # chat message 형식으로 변환
             processed_dataset.append(
