@@ -107,7 +107,7 @@ class ReasonTrainer(MyTrainer):
     
     def report_metrics(self, metrics):
         print("-" * 30)
-        print("BLEU Score: ", metrics["bleu"])
+        print("BLEU Score: ", metrics["eval_bleu"])
         print("-" * 30)
 
 
