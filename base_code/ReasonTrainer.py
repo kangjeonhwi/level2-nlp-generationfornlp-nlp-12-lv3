@@ -87,6 +87,7 @@ class ReasonTrainer(MyTrainer):
   
     def load_dataset(self) -> Dataset:
         df = pd.read_csv(self.data_path + "/train.csv")
+        df = df[df['reason'].notnull()]
         records = []
         for _, row in df.iterrows():
             problems = literal_eval(row['problems'])
