@@ -125,7 +125,7 @@ class MyTrainer:
                 )
             
             if self.zero_shot_cot:
-                user_message.replace("정답:", "")
+                user_message = user_message.replace("정답:", "")
                 tmp_user_message = user_message + "단계별로 생각하여 답을 구하세요."
                 response = model.generate(tokenizer(tmp_user_message, return_tensors="pt").input_ids.to(DEVICE), max_length=512)
                 generated_text = tokenizer.decode(response[0], skip_special_tokens=True)
