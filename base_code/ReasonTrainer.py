@@ -5,11 +5,8 @@ from config.prompts import PROMPT_GEN_REASON_NO_QUESTION_PLUS, PROMPT_GEN_REASON
 
 import pandas as pd
 import numpy as np
-from transformers import Trainer
 from datasets import Dataset
 from evaluate import load
-from peft import LoraConfig
-from trl import SFTTrainer, SFTConfig
 
 class ReasonTrainer(MyTrainer):
     def process_dataset(self, dataset: Dataset) -> Dataset:
