@@ -48,6 +48,9 @@ class MyInference:
                     choices=choices_string,
                 )
 
+            if len(dataset[i]["choices"]) == 4:
+                user_message = user_message.replace("1, 2, 3, 4, 5 중에 하나를 정답으로 고르세요.", "1, 2, 3, 4 중에 하나를 정답으로 고르세요.")
+
             test_dataset.append(
                 {
                     "id": row["id"],
