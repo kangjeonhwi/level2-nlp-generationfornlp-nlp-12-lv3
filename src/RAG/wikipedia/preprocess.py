@@ -1,10 +1,12 @@
 import os
 import json
-from konlpy.tag import Mecab
+# from konlpy.tag import Mecab
+from konlpy.tag import Okt
 import pandas as pd
 from tqdm import tqdm  # 진행 상황 표시를 위한 라이브러리
 
-mecab = Mecab()
+# mecab = Mecab()
+okt = Okt()
 
 # 추출된 JSON 데이터 로드
 def load_wikipedia_data(path):
@@ -26,7 +28,8 @@ def preprocess_text(text):
     # 예제: 특수문자 및 공백 제거
     text = text.replace('\n', ' ').replace('\t', ' ')
     # 형태소 분석
-    tokens = mecab.morphs(text)
+    # tokens = mecab.morphs(text) # mecab 사용시
+    tokens = okt.morphs(text) # okt 사용시
     return ' '.join(tokens)
 
 # 데이터 로드
@@ -40,5 +43,5 @@ data['clean_text'] = data['text'].progress_apply(preprocess_text)
 
 # 저장
 print("Saving preprocessed data...")
-data[['id', 'title', 'clean_text']].to_csv('preprocessed_wikipedia.csv', index=False)
-print("Preprocessing complete. File saved as 'preprocessed_wikipedia.csv'.")
+data[['id', 'title', 'clean_text']].to_csv('preprocessed_wikipedia_okt.csv', index=False)
+print("Preprocessing complete. File saved as 'preprocessed_wikipedia_okt.csv'.")
