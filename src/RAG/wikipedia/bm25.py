@@ -46,11 +46,11 @@ def search(query, top_k=5):
     top_indices = scores.argsort()[-top_k:][::-1]
     results = []
     for idx in top_indices:
-        result = chunked_df.iloc[idx]
+        result = data.iloc[idx]
         results.append({
             "id": result['id'],
             "title": result['title'],
-            "chunk": result['chunk'],
+            "content": result['clean_text'],
             "score": scores[idx]
         })
     return results
@@ -65,5 +65,5 @@ print("\nTop results:")
 for i, res in enumerate(results):
     print(f"Rank {i + 1}:")
     print(f"  Title: {res['title']}")
-    print(f"  Content: {res['chunk'][:200]}...")
+    print(f"  Content: {res['content'][:200]}...")  # 결과 텍스트 일부만 출력
     print(f"  Score: {res['score']}")
