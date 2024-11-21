@@ -63,6 +63,38 @@ class BasePipeline:
     def load_dataset(self):
         return Dataset.from_pandas(load_dataset(pd.read_csv(self.data_path + "/train.csv")))
     
+    def make_user_messages(self, row):
+        choice_string = "\n".join([f"{idx + 1} - {choice}" for idx, choice in enumerate(row["choices"])])
+        
+        # <보기>가 있을 때
+        if row["question_plus"]:
+            user_message = config_prompts.PROMPT_QUESTION_PLUS.format(
+                paragraph=row["paragraph"],
+                question=row["question"],
+                question_plus=row["question_plus"],
+                choices=choice_string,
+            )
+        # <보기>가 없을 때
+        else:
+            user_message = config_prompts.PROMPT_NO_QUESTION_PLUS.format(
+                paragraph=row["paragraph"],
+                question=row["question"],
+                choices=choice_string,
+            )
+        
+        return user_message
+    
+    def make_chat_message(self, row, user_message):
+        return {
+            "id": row["id"],
+            "messages": [
+                {"role": "system", "content": "지문을 읽고 질문의 답을 구하세요."},
+                {"role": "user", "content": user_message},
+                {"role": "assistant", "content": f"{row['answer']}"}
+            ],
+            "label": row["answer"],
+        }
+
     def process_dataset(self, dataset: Dataset) -> Dataset:
         """입력으로 들어온 dataset을 이용하여 입력 프롬프트와 그에 대한 정답을 생성합니다.
 
@@ -76,38 +108,14 @@ class BasePipeline:
         """
         processed_dataset = []
         for i in range(len(dataset)):
-            choices_string = "\n".join([f"{idx + 1} - {choice}" for idx, choice in enumerate(dataset[i]["choices"])])
-
-            # <보기>가 있을 때
-            if dataset[i]["question_plus"]:
-                user_message = config_prompts.PROMPT_QUESTION_PLUS.format(
-                    paragraph=dataset[i]["paragraph"],
-                    question=dataset[i]["question"],
-                    question_plus=dataset[i]["question_plus"],
-                    choices=choices_string,
-                )
-            # <보기>가 없을 때
-            else:
-                user_message = config_prompts.PROMPT_NO_QUESTION_PLUS.format(
-                    paragraph=dataset[i]["paragraph"],
-                    question=dataset[i]["question"],
-                    choices=choices_string,
-                )
+            user_message = self.make_user_messages(dataset[i])
 
             if len(dataset[i]["choices"]) == 4:
                 user_message = user_message.replace("1, 2, 3, 4, 5 중에 하나를 정답으로 고르세요.", "1, 2, 3, 4 중에 하나를 정답으로 고르세요.")
 
             # chat message 형식으로 변환
             processed_dataset.append(
-                {
-                    "id": dataset[i]["id"],
-                    "messages": [
-                        {"role": "system", "content": "지문을 읽고 질문의 답을 구하세요."},
-                        {"role": "user", "content": user_message},
-                        {"role": "assistant", "content": f"{dataset[i]['answer']}"}
-                    ],
-                    "label": dataset[i]["answer"],
-                }
+                self.make_chat_message(dataset[i], user_message)
             )
         
         return Dataset.from_pandas(pd.DataFrame(processed_dataset))
