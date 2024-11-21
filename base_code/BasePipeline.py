@@ -11,6 +11,7 @@ from trl import SFTTrainer, DataCollatorForCompletionOnlyLM, SFTConfig
 from datasets import Dataset
 from utils.load import load_dataset
 import config.prompts as config_prompts
+from typing import List
 
 SEED = 42
 random.seed(SEED)
@@ -24,7 +25,14 @@ torch.backends.cudnn.benchmark = False
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 class BasePipeline:
-    def __init__(self, data_path, model_name_or_checkpoint, params):
+    def __init__(self, data_path: str, model_name_or_checkpoint: str, params: dict):
+        """BasePipeline 클래스의 생성자입니다.
+
+        Args:
+            data_path (str): train, eval, test 데이터셋이 저장된 디렉토리 경로
+            model_name_or_checkpoint (str): 호출할 모델의 이름 혹은 체크포인트 경로
+            params (dict): 모델 훈련 설정에 필요한 하이퍼파라미터 (LoRA, Trainer 등)
+        """
         self.data_path = data_path
         self.model_name_or_checkpoint = model_name_or_checkpoint
         self.params = params
@@ -32,7 +40,15 @@ class BasePipeline:
         self.tokenizer = None
         self.trainer = None
 
-    def formatting_prompts_func(self, example):
+    def formatting_prompts_func(self, example: dict) -> List[dict]:
+        """입력으로 들어온 example을 이용하여 입력 프롬프트를 생성합니다.
+
+        Args:
+            example (dict): "messages" 필드를 포함해야 합니다.
+
+        Returns:
+            dict: 입력 프롬프트를 반환합니다.
+        """
         output_texts = []
         for i in range(len(example["messages"])):
             output_texts.append(
@@ -43,7 +59,17 @@ class BasePipeline:
             )
         return output_texts
     
-    def tokenize(self, element):
+    def tokenize(self, element: dict) -> dict:
+        """데이터셋의 각 element를 프롬프트로 변환하고 토크나이징합니다.
+
+        Args:
+            element (dict): "messages" 필드를 포함해야 합니다.
+
+        Returns:
+            dict: 토크나이징된 결과를 반환합니다.
+            - input_ids: 토큰화된 input ids
+            - attention_mask: 토큰화된 attention mask
+        """
         outputs = self.tokenizer(
             self.formatting_prompts_func(element),
             truncation=False,
@@ -62,10 +88,23 @@ class BasePipeline:
         logits = logits[:, -2, logit_idx] # -2: answer token, -1: eos token
         return logits
     
-    def load_dataset(self):
+    def load_dataset(self) -> Dataset:
+        """
+        훈련용 데이터셋을 로드하여 허깅페이스 Dataset 형태로 반환합니다.
+        Returns:
+            Dataset: 훈련용 데이터셋
+        """
         return Dataset.from_pandas(load_dataset(pd.read_csv(self.data_path + "/train.csv")))
     
-    def make_user_messages(self, row):
+    def make_user_messages(self, row: dict) -> str:
+        """데이터셋의 각 row를 이용하여 사용자 프롬프트를 생성합니다.
+
+        Args:
+            row (dict): "paragraph", "question", "choices", "question_plus" 필드를 포함해야 합니다.
+
+        Returns:
+            str: 사용자 프롬프트를 반환합니다.
+        """
         choice_string = "\n".join([f"{idx + 1} - {choice}" for idx, choice in enumerate(row["choices"])])
         
         # <보기>가 있을 때
@@ -86,7 +125,16 @@ class BasePipeline:
         
         return user_message
     
-    def make_chat_message(self, row, user_message):
+    def make_chat_message(self, row: dict, user_message: str) -> dict:
+        """데이터셋의 각 row와 그 row로부터 얻은 사용자 프롬프트를 이용하여 챗봇 프롬프트를 포함하는 딕셔너리를 생성합니다.
+
+        Args:
+            row (dict): "id", "answer" 필드를 포함해야 합니다.
+            user_message (str): 사용자 프롬프트 
+
+        Returns:
+            dict: 챗봇 프롬프트를 포함한 딕셔너리. Dataset으로 변환됩니다.
+        """
         return {
             "id": row["id"],
             "messages": [
@@ -141,6 +189,8 @@ class BasePipeline:
         return acc
    
     def set_model(self):
+        """모델을 불러옵니다. 모델은 self.model에 할당합니다.
+        """
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name_or_checkpoint,
             torch_dtype=torch.float32,
@@ -149,6 +199,8 @@ class BasePipeline:
         ).to(DEVICE)
         
     def set_tokenizer(self):
+        """토크나이저를 불러옵니다. 토크나이저는 self.tokenizer에 할당합니다.
+        """
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.model_name_or_checkpoint,
             trust_remote_code=True
