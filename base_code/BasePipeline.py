@@ -213,6 +213,9 @@ class BasePipeline:
             trust_remote_code=True
         )
         self.tokenizer.chat_template = config_prompts.TEMPLATE
+        self.tokenizer.pad_token = self.tokenizer.eos_token
+        self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
+        self.tokenizer.padding_side = 'right'
     
     def set_data_collator(self):
         """DataCollator 객체를 생성합니다. 객체는 self.data_collator에 할당합니다.
@@ -321,10 +324,6 @@ class BasePipeline:
 
         if self.data_collator is None:
             self.set_data_collator()
-
-        self.tokenizer.pad_token = self.tokenizer.eos_token
-        self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
-        self.tokenizer.padding_side = 'right'
         
         if self.trainer is None:
             self.set_trainer()
