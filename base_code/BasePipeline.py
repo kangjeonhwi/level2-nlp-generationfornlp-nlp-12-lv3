@@ -219,15 +219,14 @@ class BasePipeline:
             device_map="auto"
         ).to(DEVICE)
 
-        tokenizer = AutoTokenizer.from_pretrained(
+        self.tokenizer = AutoTokenizer.from_pretrained(
             self.model_name,
             trust_remote_code=True
         )
-        tokenizer.chat_template = config_prompts.TEMPLATE
+        self.tokenizer.chat_template = config_prompts.TEMPLATE
         
         processed_dataset = self.process_dataset(dataset)
 
-        self.tokenizer = tokenizer
         tokenized_dataset = processed_dataset.map(
             self.tokenize,
             remove_columns=list(processed_dataset.features),
@@ -254,8 +253,8 @@ class BasePipeline:
         self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
         self.tokenizer.padding_side = 'right'
         
-        trainer = self.get_trainer()
+        self.trainer = self.get_trainer()
         
-        trainer.train()
-        final_metrics = trainer.evaluate()
+        self.trainer.train()
+        final_metrics = self.trainer.evaluate()
         self.report_metrics(final_metrics)
