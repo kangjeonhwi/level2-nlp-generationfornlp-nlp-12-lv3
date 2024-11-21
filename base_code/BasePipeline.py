@@ -23,7 +23,7 @@ torch.backends.cudnn.benchmark = False
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-class MyTrainer:
+class BasePipeline:
     def __init__(self, data_path, model_name, params):
         self.data_path = data_path
         self.model_name = model_name
