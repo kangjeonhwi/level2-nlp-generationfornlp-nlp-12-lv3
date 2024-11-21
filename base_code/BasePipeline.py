@@ -174,6 +174,7 @@ class BasePipeline:
     
     def make_chat_message(self, row: dict, user_message: str) -> dict:
         """데이터셋의 각 row와 그 row로부터 얻은 사용자 프롬프트를 이용하여 챗봇 프롬프트를 포함하는 딕셔너리를 생성합니다.
+        상속받는 클래스에서 이 메소드를 오버라이드할 것.
 
         Args:
             row (dict): "id", "answer" 필드를 포함해야 합니다.
@@ -187,17 +188,39 @@ class BasePipeline:
             "messages": [
                 {"role": "system", "content": "지문을 읽고 질문의 답을 구하세요."},
                 {"role": "user", "content": user_message},
-                {"role": "assistant", "content": f"{row['answer']}"}
             ],
             "label": row["answer"],
         }
+    
+    def _make_chat_message(self, row: dict, user_message: str, mode="train") -> dict:
+        """데이터셋의 각 row와 그 row로부터 얻은 사용자 프롬프트를 이용하여 챗봇 프롬프트를 포함하는 딕셔너리를 생성합니다.
+        데이터셋 모드에 따라 챗봇 프롬프트에 정답을 포함할지 여부를 결정합니다.
+        
+        Args:
+            row (dict): "id", "answer", "choices" 필드를 포함해야 합니다.
+            user_message (str): 사용자 프롬프트 
+            mode (str): 데이터셋 모드 (train, test 중 하나)
 
-    def process_dataset(self, dataset: Dataset) -> Dataset:
+        Returns:
+            dict: 챗봇 프롬프트를 포함한 딕셔너리. Dataset으로 변환됩니다.
+        """
+        chat_message = self.make_chat_message(row, user_message)
+        if mode == "train":
+            chat_message["messages"].append({"role": "assistant", "content": f"{chat_message['label']}"})
+        elif mode == "test":
+            chat_message["len_choices"] = len(row["choices"])
+        else:
+            raise ValueError("mode는 train 또는 test 중 하나여야 합니다.")
+        
+        return chat_message    
+    
+    def process_dataset(self, dataset: Dataset, mode="train") -> Dataset:
         """입력으로 들어온 dataset을 이용하여 입력 프롬프트와 그에 대한 정답을 생성합니다.
 
         Args:
             dataset (Dataset): 입력으로 들어온 dataset. 아래 필드를 포함하고 있어야 합니다.
             (id-식별자, 지문-paragraph, 질문-question, 선지-choices, 보기-question_plus,정답-answer)
+            mode (str): 데이터셋 모드 (train, test 중 하나)
         
         Returns:
             Dataset: 아래 필드를 포함하고 있는 dataset을 반환합니다.
@@ -212,7 +235,7 @@ class BasePipeline:
 
             # chat message 형식으로 변환
             processed_dataset.append(
-                self.make_chat_message(dataset[i], user_message)
+                self.make_chat_message(dataset[i], user_message, mode=mode)
             )
         
         return Dataset.from_pandas(pd.DataFrame(processed_dataset))
@@ -371,3 +394,61 @@ class BasePipeline:
         self.trainer.train()
         final_metrics = self.trainer.evaluate()
         self.report_metrics(final_metrics)
+        
+    def inference(self, dataset: Dataset) -> pd.DataFrame:
+        infer_results = []
+        pred_choices_map = {0: "1", 1: "2", 2: "3", 3: "4", 4: "5"}
+        
+        self.model.eval()
+        with torch.inference_mode():
+            for data in tqdm(dataset):
+                _id = data["id"]
+                messages = data["messages"]
+                len_choices = data["len_choices"]
+
+                outputs = self.model(
+                    self.tokenizer.apply_chat_template(
+                        messages,
+                        tokenize=True,
+                        add_generation_prompt=True,
+                        return_tensors="pt",
+                    ).to(DEVICE)
+                )
+
+                logits = outputs.logits[:, -1].flatten().cpu()
+
+                target_logit_list = [logits[self.tokenizer.vocab[str(i + 1)]] for i in range(len_choices)]
+
+                probs = (
+                    torch.nn.functional.softmax(
+                        torch.tensor(target_logit_list, dtype=torch.float32)
+                    )
+                    .detach()
+                    .cpu()
+                    .numpy()
+                )
+
+                predict_value = pred_choices_map[np.argmax(probs, axis=-1)]
+                infer_results.append({"id": _id, "answer": predict_value})
+                
+        return pd.DataFrame(infer_results)
+    
+    def inference_routine(self):
+        dataset = self._load_dataset(mode="test")
+        if self.model is None:
+            self.set_model()
+        elif self.trainer.state.best_model_checkpoint is not None:
+            original_model_name = self.model_name
+            self.model_name = self.trainer.state.best_model_checkpoint
+            self.set_model()
+            self.model_name = original_model_name
+        elif self.trainer is not None:
+            self.model = self.trainer.model
+            
+        if self.tokenizer is None:
+            self.set_tokenizer()
+
+        test_dataset = self.process_dataset(dataset, mode="test")
+        output = self.inference(test_dataset)
+        output.to_csv("output.csv", index=False)
+        print("Successfully saved the output csv file!")
