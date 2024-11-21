@@ -24,10 +24,13 @@ torch.backends.cudnn.benchmark = False
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 class BasePipeline:
-    def __init__(self, data_path, model_name, params):
+    def __init__(self, data_path, model_name_or_checkpoint, params):
         self.data_path = data_path
-        self.model_name = model_name
+        self.model_name_or_checkpoint = model_name_or_checkpoint
         self.params = params
+        self.model = None
+        self.tokenizer = None
+        self.trainer = None
 
     def formatting_prompts_func(self, example):
         output_texts = []
@@ -38,7 +41,6 @@ class BasePipeline:
                     tokenize=False
                 )
             )
-
         return output_texts
     
     def tokenize(self, element):
@@ -137,8 +139,23 @@ class BasePipeline:
         acc = acc_metric.compute(predictions=predictions, references=labels)
         
         return acc
+   
+    def set_model(self):
+        self.model = AutoModelForCausalLM.from_pretrained(
+            self.model_name_or_checkpoint,
+            torch_dtype=torch.float32,
+            trust_remote_code=True,
+            device_map="auto"
+        ).to(DEVICE)
+        
+    def set_tokenizer(self):
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            self.model_name_or_checkpoint,
+            trust_remote_code=True
+        )
+        self.tokenizer.chat_template = config_prompts.TEMPLATE
     
-    def get_trainer(self) -> Trainer:
+    def set_trainer(self) -> Trainer:
         """Trainer 객체를 생성합니다. 다음 인스턴스 변수들이 존재해야 합니다.
         - model: 훈련시킬 모델
         - train_dataset: 훈련 데이터셋
@@ -179,7 +196,7 @@ class BasePipeline:
             log_level='error'
         )
 
-        trainer = SFTTrainer(
+        self.trainer = SFTTrainer(
             model=self.model,
             train_dataset=self.train_dataset,
             eval_dataset=self.eval_dataset,
@@ -200,8 +217,6 @@ class BasePipeline:
         print("learning_rate : {}".format(self.params["learning_rate"]))
         print("weight_decay : {}".format(self.params["weight_decay"]))
         print("-" * 30)
-        
-        return trainer
 
     def report_metrics(self, metrics):
         print("-" * 30)
@@ -212,18 +227,8 @@ class BasePipeline:
         # train task
         dataset = self.load_dataset()
         
-        self.model = AutoModelForCausalLM.from_pretrained(
-            self.model_name,
-            torch_dtype=torch.float32,
-            trust_remote_code=True,
-            device_map="auto"
-        ).to(DEVICE)
-
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            self.model_name,
-            trust_remote_code=True
-        )
-        self.tokenizer.chat_template = config_prompts.TEMPLATE
+        self.set_model()
+        self.set_tokenizer()
         
         processed_dataset = self.process_dataset(dataset)
 
