@@ -9,7 +9,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from peft import AutoPeftModelForCausalLM, LoraConfig
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM, SFTConfig
 from datasets import Dataset
-from utils.load import load_dataset, load_config
+from ast import literal_eval
+from utils.load import load_config
 import config.prompts as config_prompts
 from typing import List
 
@@ -95,13 +96,52 @@ class BasePipeline:
         logits = logits[:, -2, logit_idx] # -2: answer token, -1: eos token
         return logits
     
-    def load_dataset(self) -> Dataset:
-        """
-        훈련용 데이터셋을 로드하여 허깅페이스 Dataset 형태로 반환합니다.
+    def load_dataset(self, dataset: pd.DataFrame) -> pd.DataFrame:
+        """데이터프레임을 로드하여 필요한 필드를 추가하여 데이터프레임을 반환합니다.
+
+        Args:
+            dataset (pd.DataFrame): "id", "paragraph", "problems" 필드를 포함해야 합니다.
+
         Returns:
-            Dataset: 훈련용 데이터셋
+            pd.DataFrame: "id", "paragraph", "question", "choices", "answer" 필드를 포함한 데이터프레임을 반환합니다.
         """
-        return Dataset.from_pandas(load_dataset(pd.read_csv(self.data_path + "/train.csv")))
+        records = []
+        for _, row in dataset.iterrows():
+            problems = literal_eval(row['problems'])
+            record = {
+                'id': row['id'],
+                'paragraph': row['paragraph'],
+                'question': problems['question'],
+                'choices': problems['choices'],
+                'answer': problems.get('answer', None),
+                "question_plus": problems.get('question_plus', None),
+            }
+            if 'question_plus' in problems:
+                record['question_plus'] = problems['question_plus']
+            records.append(record)
+        df = pd.DataFrame(records)
+        return df
+    
+    def _load_dataset(self, mode="train") -> Dataset:
+        """
+        csv 파일을 로드하여 허깅페이스 Dataset 형태로 반환합니다.
+        
+        Args:
+            mode (str): 데이터셋 모드 (train, test 중 하나)
+        
+        Returns:
+            Dataset: 데이터셋
+        """
+        
+        file_name = None
+        if mode == "test":
+            file_name = self.data_config["test_file"]
+        elif mode == "train":
+            file_name = self.data_config["train_file"]
+        else:
+            raise ValueError("mode는 train 또는 test 중 하나여야 합니다.")    
+    
+        return Dataset.from_pandas(self.load_dataset(pd.read_csv(self.data_path + "/" + file_name)))
     
     def make_user_messages(self, row: dict) -> str:
         """데이터셋의 각 row를 이용하여 사용자 프롬프트를 생성합니다.
@@ -296,7 +336,7 @@ class BasePipeline:
 
     def train(self):
         # train task
-        dataset = self.load_dataset()
+        dataset = self._load_dataset()
         
         if self.model is None:
             self.set_model()
