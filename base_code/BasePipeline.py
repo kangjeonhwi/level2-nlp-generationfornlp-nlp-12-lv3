@@ -214,6 +214,15 @@ class BasePipeline:
         )
         self.tokenizer.chat_template = config_prompts.TEMPLATE
     
+    def set_data_collator(self):
+        """DataCollator 객체를 생성합니다. 객체는 self.data_collator에 할당합니다.
+        """
+        response_template = "<start_of_turn>model"
+        self.data_collator = DataCollatorForCompletionOnlyLM(
+            response_template=response_template,
+            tokenizer=self.tokenizer,
+        )
+    
     def set_trainer(self) -> Trainer:
         """Trainer 객체를 생성합니다. 다음 인스턴스 변수들이 존재해야 합니다.
         - model: 훈련시킬 모델
@@ -310,11 +319,9 @@ class BasePipeline:
         self.train_dataset = tokenized_dataset['train']
         self.eval_dataset = tokenized_dataset['test']
 
-        response_template = "<start_of_turn>model"
-        self.data_collator = DataCollatorForCompletionOnlyLM(
-            response_template=response_template,
-            tokenizer=self.tokenizer,
-        )
+        if self.data_collator is None:
+            self.set_data_collator()
+
         self.tokenizer.pad_token = self.tokenizer.eos_token
         self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
         self.tokenizer.padding_side = 'right'
