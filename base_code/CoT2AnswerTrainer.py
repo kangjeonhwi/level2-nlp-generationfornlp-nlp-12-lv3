@@ -2,8 +2,29 @@ from datasets import Dataset
 import config.prompts as config_prompts
 from trainer import MyTrainer
 import pandas as pd
+from ast import literal_eval
 
 class CoT2AnswerTrainer(MyTrainer):
+    def load_dataset(self) -> Dataset:
+        df = pd.read_csv(self.data_path + "/train.csv")
+        df = df[df['reason'].notnull()]
+        records = []
+        for _, row in df.iterrows():
+            problems = literal_eval(row['problems'])
+            record = {
+                'id': row['id'],
+                'paragraph': row['paragraph'],
+                'question': problems['question'],
+                'choices': problems['choices'],
+                'answer': problems.get('answer', None),
+                "question_plus": problems.get('question_plus', None),
+                "reason": row["reason"]
+            }
+            if 'question_plus' in problems:
+                record['question_plus'] = problems['question_plus']
+            records.append(record)
+        return Dataset.from_pandas(pd.DataFrame(records))
+    
     def process_dataset(self, dataset: Dataset) -> Dataset:
         processed_dataset = []
         for i in range(len(dataset)):
