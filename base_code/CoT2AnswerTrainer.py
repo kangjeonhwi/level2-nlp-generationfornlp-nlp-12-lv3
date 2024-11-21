@@ -48,8 +48,8 @@ class CoT2AnswerTrainer(MyTrainer):
                     reason=dataset[i]["reason"],
                 )
 
-            if len(dataset[i]["choices"]) == 4:
-                user_message = user_message.replace("1, 2, 3, 4, 5 중에 하나를 정답으로 고르세요.", "1, 2, 3, 4 중에 하나를 정답으로 고르세요.")
+            # if len(dataset[i]["choices"]) == 4:
+            #     user_message = user_message.replace("1, 2, 3, 4, 5 중에 하나를 정답으로 고르세요.", "1, 2, 3, 4 중에 하나를 정답으로 고르세요.")
 
             # chat message 형식으로 변환
             processed_dataset.append(
