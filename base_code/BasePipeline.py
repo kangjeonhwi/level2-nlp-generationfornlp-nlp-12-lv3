@@ -227,8 +227,10 @@ class BasePipeline:
         # train task
         dataset = self.load_dataset()
         
-        self.set_model()
-        self.set_tokenizer()
+        if self.model is None:
+            self.set_model()
+        if self.tokenizer is None:
+            self.set_tokenizer()
         
         processed_dataset = self.process_dataset(dataset)
 
@@ -258,7 +260,8 @@ class BasePipeline:
         self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
         self.tokenizer.padding_side = 'right'
         
-        self.trainer = self.get_trainer()
+        if self.trainer is None:
+            self.set_trainer()
         
         self.trainer.train()
         final_metrics = self.trainer.evaluate()
