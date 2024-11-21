@@ -9,7 +9,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from peft import AutoPeftModelForCausalLM, LoraConfig
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM, SFTConfig
 from datasets import Dataset
-from utils.load import load_dataset
+from utils.load import load_dataset, load_config
 import config.prompts as config_prompts
 from typing import List
 
@@ -25,17 +25,24 @@ torch.backends.cudnn.benchmark = False
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 class BasePipeline:
-    def __init__(self, data_path: str, model_name_or_checkpoint: str, params: dict):
+    def __init__(self, config_name: str):
         """BasePipeline 클래스의 생성자입니다.
 
         Args:
-            data_path (str): train, eval, test 데이터셋이 저장된 디렉토리 경로
-            model_name_or_checkpoint (str): 호출할 모델의 이름 혹은 체크포인트 경로
-            params (dict): 모델 훈련 설정에 필요한 하이퍼파라미터 (LoRA, Trainer 등)
+            config_name (str): config 파일의 경로 (확장자 제외)
         """
-        self.data_path = data_path
-        self.model_name_or_checkpoint = model_name_or_checkpoint
-        self.params = params
+        config = load_config(config_name)
+        
+        self.config_name = config_name.split("/")[-1]
+        
+        self.data_config = config["data"]
+        self.data_path = self.data_config["data_path"]
+        
+        self.model_config = config["model"]
+        self.model_name = self.model_config["model_name"]
+        
+        self.params = config["params"]
+        
         self.model = None
         self.tokenizer = None
         self.trainer = None

@@ -11,9 +11,15 @@
         "weight_decay" : 0.01
     },
 
-    "settings" : 
+    "model" : 
     {
-        "model_name" : "beomi/gemma-ko-2b",
-        "dataset" : "../../data"
+        "name" : "beomi/gemma-ko-2b"
+    },
+
+    "data" :
+    {
+        "data_path" : "../../data",
+        "train_file" : "train.csv",
+        "test_file" : "test.csv"
     }
 }
