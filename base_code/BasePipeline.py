@@ -358,7 +358,12 @@ class BasePipeline:
                 
         return pd.DataFrame(infer_results)
     
-    def inference(self):
+    def inference(self) -> pd.DataFrame:
+        """테스트 데이터셋에 대한 추론을 수행합니다.
+
+        Returns:
+            pd.DataFrame: 추론 결과를 반환합니다.
+        """
         dataset = self._load_dataset(mode="test")
         if self.manager.model is None:
             self.manager.set_model(AutoModel=AutoPeftModelForCausalLM)
@@ -378,3 +383,4 @@ class BasePipeline:
         output.to_csv(f"{self.output_path}/{self.config_name}-output.csv", index=False)
         print("Successfully saved the output csv file!")
         
+        return output
