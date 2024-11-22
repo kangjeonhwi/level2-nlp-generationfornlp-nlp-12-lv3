@@ -41,7 +41,7 @@
         "train_file" : "train.csv",
         "dev_file" : null,
         "test_file" : "test.csv",
-        "filtering_input_ids_length": 1024,
+        "filtering_input_ids_length": -1,
         "tokenizer_num_procs": 4,
         "use_4-choices_prompt": false,
         "test_size": 0.1
