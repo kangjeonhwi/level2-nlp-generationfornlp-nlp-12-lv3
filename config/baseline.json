@@ -42,6 +42,7 @@
         "test_file" : "test.csv",
         "filtering_input_ids_length": 1024,
         "tokenizer_num_procs": 4,
+        "use_4-choices_prompt": false,
         "test_size": 0.1
     },
 
