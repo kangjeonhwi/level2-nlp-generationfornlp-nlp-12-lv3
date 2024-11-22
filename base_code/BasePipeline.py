@@ -270,7 +270,7 @@ class BasePipeline:
         # 데이터셋 분리 (test_size 설정과 dev_file 설정 고려)
         test_size = float(self.data_config.get("test_size", 0.1))
         dev_file = self.data_config.get("dev_file", None)
-        if test_size > 0 and dev_file is not None:
+        if test_size > 0 and dev_file is None:
             tokenized_dataset = tokenized_dataset.train_test_split(test_size=0.1, seed=42)
 
             train_dataset = tokenized_dataset['train']
