@@ -1,3 +1,4 @@
+import torch
 from typing import Type, Union
 from peft import AutoPeftModelForCausalLM
 from transformers import AutoModelForCausalLM
@@ -10,7 +11,7 @@ class EXAONEManager(ModelManager):
             self.model_name_or_checkpoint,
             trust_remote_code=True,
             device_map="auto",
-            fp16=True
+            torch_dtype=torch.float16
         )
         
     def set_data_collator(self):
