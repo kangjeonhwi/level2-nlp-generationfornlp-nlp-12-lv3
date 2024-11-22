@@ -29,6 +29,7 @@
 
     "experiment" :
     {
+        "output_dir" : "experiments",
         "last_eval_strategy" : "evaluate",
         "save_train_dataset" : false,
         "save_eval_dataset" : false

@@ -1,3 +1,4 @@
+import os
 import torch
 import numpy as np
 import pandas as pd
@@ -38,6 +39,9 @@ class BasePipeline:
         self.data_path = self.data_config["data_path"]
         
         self.experiment_config = config["experiment"]
+        self.output_path = self.experiment_config.get("output_path", ".")
+        if not os.path.exists(self.output_path):
+            os.makedirs(self.output_path)
         
         model_config = config["model"]
         params = config["params"]
@@ -292,9 +296,9 @@ class BasePipeline:
         # save train and eval dataset
         train_df, eval_df = self.get_train_and_valid_df(eval_dataset)
         if self.experiment_config.get("save_train_dataset", False):
-            train_df.to_csv(f"{self.config_name}-train.csv", index=False)
+            train_df.to_csv(f"{self.output_path}/{self.config_name}-train.csv", index=False)
         if self.experiment_config.get("save_eval_dataset", False):
-            eval_df.to_csv(f"{self.config_name}-eval.csv", index=False)
+            eval_df.to_csv(f"{self.output_path}/{self.config_name}-eval.csv", index=False)
 
         if self.manager.data_collator is None:
             self.manager.set_data_collator()
@@ -314,7 +318,7 @@ class BasePipeline:
                 _, eval_df = self.get_train_and_valid_df(eval_dataset)
                 processed_df = self.process_dataset(self._load_dataset(df=eval_df), mode="test")
                 output = self.do_inference(self.manager.model, processed_df)
-                output.to_csv(f"{self.config_name}-eval-output.csv", index=False)
+                output.to_csv(f"{self.output_path}/{self.config_name}-eval-output.csv", index=False)
         
     def do_inference(self, model: AutoPeftModelForCausalLM, dataset: Dataset) -> pd.DataFrame:
         infer_results = []
@@ -371,6 +375,6 @@ class BasePipeline:
 
         test_dataset = self.process_dataset(dataset, mode="test")
         output = self.do_inference(self.manager.model, test_dataset)
-        output.to_csv("output.csv", index=False)
+        output.to_csv(f"{self.output_path}/{self.config_name}-output.csv", index=False)
         print("Successfully saved the output csv file!")
         
