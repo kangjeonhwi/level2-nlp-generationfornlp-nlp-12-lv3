@@ -169,15 +169,15 @@ class ModelManager(ABC):
         print("weight_decay : {}".format(self.params["weight_decay"]))
         print("-" * 30)
         
-    def train(self):
+    def train(self, *args, **kwargs):
         """모델을 훈련합니다.
         """
-        self.trainer.train()
+        self.trainer.train(*args, **kwargs)
     
-    def evaluate(self) -> dict:
+    def evaluate(self, *args, **kwargs) -> dict:
         """모델을 평가합니다.
         
         Returns:
             dict: 평가 지표를 반환합니다.
         """
-        return self.trainer.evaluate()
+        return self.trainer.evaluate(*args, **kwargs)
