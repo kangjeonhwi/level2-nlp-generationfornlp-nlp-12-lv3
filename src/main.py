@@ -1,6 +1,6 @@
 import argparse
-from BasePipeline import BasePipeline
-from GemmaManager import GemmaManager
+from pipeline import BasePipeline
+from manager import GemmaManager
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

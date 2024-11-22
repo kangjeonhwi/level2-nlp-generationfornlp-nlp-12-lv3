@@ -9,9 +9,9 @@ import evaluate
 from peft import AutoPeftModelForCausalLM
 from datasets import Dataset
 from ast import literal_eval
-from utils.load import load_config, load_last_commit
-import config.prompts as config_prompts
-from ModelManager import ModelManager 
+from utils import load_config, load_last_commit
+import prompts as config_prompts
+from manager import ModelManager 
 from typing import Type, Tuple, Optional
 
 SEED = 42
