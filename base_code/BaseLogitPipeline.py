@@ -47,9 +47,10 @@ class BaseLogitPipeline(BasePipeline):
                 
                 
                 if len_choices < len(pred_choices_map):
+                    target_logit_list = [logit.item() for logit in target_logit_list]
                     target_logit_list += [None] * (len(pred_choices_map) - len_choices)
                 for i, logit in enumerate(target_logit_list):
-                    row[f"logit_{pred_choices_map[i]}"] = logit.item()
+                    row[f"logit_{pred_choices_map[i]}"] = logit
                 
                 infer_results.append(row)
                 
