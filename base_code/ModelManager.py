@@ -15,6 +15,7 @@ class ModelManager(ABC):
         self.tokenizer = None
         self.model = None
         self.trainer = None
+        self.data_collator = None
     
     
     def formatting_prompts_func(self, example: dict) -> List[dict]:
