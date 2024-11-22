@@ -253,7 +253,7 @@ class BasePipeline:
         final_metrics = self.manager.evaluate()
         self.report_metrics(final_metrics)
         
-    def inference(self, model: AutoPeftModelForCausalLM, dataset: Dataset) -> pd.DataFrame:
+    def do_inference(self, model: AutoPeftModelForCausalLM, dataset: Dataset) -> pd.DataFrame:
         infer_results = []
         pred_choices_map = {0: "1", 1: "2", 2: "3", 3: "4", 4: "5"}
         tokenizer = self.manager.tokenizer
@@ -291,8 +291,7 @@ class BasePipeline:
                 
         return pd.DataFrame(infer_results)
     
-    # TODO: 추론 루틴 구현
-    def inference_routine(self):
+    def inference(self):
         dataset = self._load_dataset(mode="test")
         if self.manager.model is None:
             self.manager.set_model(AutoModel=AutoPeftModelForCausalLM)
@@ -308,7 +307,7 @@ class BasePipeline:
             self.manager.set_tokenizer()
 
         test_dataset = self.process_dataset(dataset, mode="test")
-        output = self.inference(test_dataset)
+        output = self.do_inference(self.manager.model, test_dataset)
         output.to_csv("output.csv", index=False)
         print("Successfully saved the output csv file!")
         
