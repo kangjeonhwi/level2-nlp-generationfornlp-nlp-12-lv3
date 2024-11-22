@@ -79,6 +79,8 @@ class GenPipeline(BasePipeline):
   
     def load_dataset(self, dataset: pd.DataFrame) -> pd.DataFrame:
         records = []
+        if "reason" not in dataset.columns:
+            dataset["reason"] = None
         dataset = dataset[dataset["reason"].notnull()]
         for _, row in dataset.iterrows():
             problems = literal_eval(row['problems'])
