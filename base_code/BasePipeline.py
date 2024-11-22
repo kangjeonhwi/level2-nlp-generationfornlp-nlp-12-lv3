@@ -40,12 +40,17 @@ class BasePipeline:
         
         self.experiment_config = config["experiment"]
         self.output_path = self.experiment_config.get("output_dir", ".")
-        if not os.path.exists(self.output_path):
-            os.makedirs(self.output_path)
         
         model_config = config["model"]
         params = config["params"]
         self.manager = Manager(model_config, params)
+    
+    def save_df(self, df: pd.DataFrame, file_path: str):
+        if not os.path.exists(self.output_path):
+            os.makedirs(self.output_path)
+        if not os.path.exists(f"{self.output_path}/{self.config_name}"):
+            os.makedirs(f"{self.output_path}/{self.config_name}")
+        df.to_csv(f"{self.output_path}/{self.config_name}/{file_path}", index=False)
     
     def preprocess_logits_for_metrics(self, logits, labels):
         tokenizer = self.manager.tokenizer
@@ -296,9 +301,9 @@ class BasePipeline:
         # save train and eval dataset
         train_df, eval_df = self.get_train_and_valid_df(eval_dataset)
         if self.experiment_config.get("save_train_dataset", False):
-            train_df.to_csv(f"{self.output_path}/{self.config_name}-train.csv", index=False)
+            self.save_df(train_df, "train.csv")
         if self.experiment_config.get("save_eval_dataset", False):
-            eval_df.to_csv(f"{self.output_path}/{self.config_name}-eval.csv", index=False)
+            self.save_df(eval_df, "dev.csv")
 
         if self.manager.data_collator is None:
             self.manager.set_data_collator()
@@ -318,8 +323,8 @@ class BasePipeline:
                 _, eval_df = self.get_train_and_valid_df(eval_dataset)
                 processed_df = self.process_dataset(self._load_dataset(df=eval_df), mode="test")
                 output = self.do_inference(self.manager.model, processed_df)
-                output.to_csv(f"{self.output_path}/{self.config_name}-eval-output.csv", index=False)
-        
+                self.save_df(output, "eval-output.csv")
+                
     def do_inference(self, model: AutoPeftModelForCausalLM, dataset: Dataset) -> pd.DataFrame:
         infer_results = []
         pred_choices_map = {0: "1", 1: "2", 2: "3", 3: "4", 4: "5"}
@@ -380,7 +385,7 @@ class BasePipeline:
 
         test_dataset = self.process_dataset(dataset, mode="test")
         output = self.do_inference(self.manager.model, test_dataset)
-        output.to_csv(f"{self.output_path}/{self.config_name}-output.csv", index=False)
+        self.save_df(output, "output.csv")
         print("Successfully saved the output csv file!")
         
         return output
