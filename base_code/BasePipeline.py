@@ -76,19 +76,22 @@ class BasePipeline:
         df = pd.DataFrame(records)
         return df
     
-    def _load_dataset(self, mode="train") -> Dataset:
+    def _load_dataset(self, mode : str = "train", df : Optional[pd.DataFrame] = None) -> Dataset:
         """
         csv 파일을 로드하여 허깅페이스 Dataset 형태로 반환합니다.
         
         Args:
             mode (str): 데이터셋 모드 (train, dev, test 중 하나)
-        
+            df (pd.DataFrame): 데이터프레임을 직접 입력할 경우 사용합니다.
+            
         Returns:
             Dataset: 데이터셋
         """
         
         file_name = None
-        if mode == "test":
+        if df is not None:
+            return Dataset.from_pandas(self.load_dataset(df))
+        elif mode == "test":
             file_name = self.data_config["test_file"]
         elif mode == "dev":
             file_name = self.data_config["dev_file"]
