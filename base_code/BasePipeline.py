@@ -10,7 +10,7 @@ from ast import literal_eval
 from utils.load import load_config
 import config.prompts as config_prompts
 from ModelManager import ModelManager 
-from typing import Type
+from typing import Type, Tuple, Optional
 
 SEED = 42
 random.seed(SEED)
@@ -219,6 +219,21 @@ class BasePipeline:
         print("Evaluation Accuracy : {:.4f}".format(metrics["eval_accuracy"]))
         print("-" * 30)
 
+    def get_train_and_valid_df(self, eval_dataset: Optional[Dataset]) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        dev_file = self.data_config.get("dev_file", None)
+        if dev_file is not None:
+            # dev_file을 직접 지정한 경우, 이 경우에는 이 함수를 호출하지 않는 것을 추천합니다.
+            return (
+                pd.read_csv(self.data_path + self.data_config["train_file"]),
+                pd.read_csv(self.data_path + dev_file)
+            )
+        else: # splited
+            all_df = pd.read_csv(self.data_path + self.data_config["train_file"])
+            valid_df_ids = set(eval_dataset["id"]) if eval_dataset is not None else set()
+            train_df = all_df[~all_df["id"].isin(valid_df_ids)]
+            eval_df = all_df[all_df["id"].isin(valid_df_ids)]
+            return train_df, eval_df
+
     def train(self):
         # train task
         dataset = self._load_dataset()
@@ -245,6 +260,7 @@ class BasePipeline:
         if filter_len > 0:
             tokenized_dataset = tokenized_dataset.filter(lambda x: len(x["input_ids"]) <= filter_len)  
         
+        # 데이터셋 분리 (test_size 설정과 dev_file 설정 고려)
         test_size = float(self.data_config.get("test_size", 0.1))
         dev_file = self.data_config.get("dev_file", None)
         if test_size > 0 and dev_file is not None:
@@ -270,14 +286,23 @@ class BasePipeline:
             train_dataset = tokenized_dataset
             eval_dataset = None
 
+        # save train and eval dataset
+        train_df, eval_df = self.get_train_and_valid_df(eval_dataset)
+        if self.experiment_config.get("save_train_dataset", False):
+            train_df.to_csv(f"{self.config_name}-train.csv", index=False)
+        if self.experiment_config.get("save_eval_dataset", False):
+            eval_df.to_csv(f"{self.config_name}-eval.csv", index=False)
+
         if self.manager.data_collator is None:
             self.manager.set_data_collator()
         
         if self.manager.trainer is None:
             self.manager.set_trainer(train_dataset, eval_dataset, self.compute_metrics, self.preprocess_logits_for_metrics)
         
-        last_eval_strategy = self.experiment_config.get("last_eval_strategy", "no")
         self.manager.train()
+        
+        # 훈련 종료시 evaluate를 진행할지 안할지 결정
+        last_eval_strategy = self.experiment_config.get("last_eval_strategy", "no")
         if (test_size > 0 or dev_file is not None) and not last_eval_strategy == "no":
             if last_eval_strategy == "evaluate":
                 final_metrics = self.manager.evaluate()
