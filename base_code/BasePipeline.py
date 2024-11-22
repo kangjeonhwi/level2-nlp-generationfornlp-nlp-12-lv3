@@ -37,6 +37,8 @@ class BasePipeline:
         self.data_config = config["data"]
         self.data_path = self.data_config["data_path"]
         
+        self.experiment_config = config["experiment"]
+        
         model_config = config["model"]
         params = config["params"]
         self.manager = Manager(model_config, params)
@@ -256,10 +258,14 @@ class BasePipeline:
         if self.manager.trainer is None:
             self.manager.set_trainer(train_dataset, eval_dataset, self.compute_metrics, self.preprocess_logits_for_metrics)
         
+        last_eval_strategy = self.experiment_config.get("last_eval_strategy", "no")
         self.manager.train()
-        if test_size > 0:
-            final_metrics = self.manager.evaluate()
-            self.report_metrics(final_metrics)
+        if test_size > 0 and not last_eval_strategy == "no":
+            if last_eval_strategy == "evaluate":
+                final_metrics = self.manager.evaluate()
+                self.report_metrics(final_metrics)
+            elif last_eval_strategy == "inference":
+                pass
         
     def do_inference(self, model: AutoPeftModelForCausalLM, dataset: Dataset) -> pd.DataFrame:
         infer_results = []
