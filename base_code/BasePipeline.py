@@ -289,7 +289,7 @@ class BasePipeline:
         test_size = float(self.data_config.get("test_size", 0.1))
         dev_file = self.data_config.get("dev_file", None)
         if test_size > 0 and dev_file is None:
-            tokenized_dataset = tokenized_dataset.train_test_split(test_size=0.1, seed=42)
+            tokenized_dataset = tokenized_dataset.train_test_split(test_size=test_size, seed=42)
 
             train_dataset = tokenized_dataset['train']
             eval_dataset = tokenized_dataset['test']
