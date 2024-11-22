@@ -39,7 +39,7 @@ class BasePipeline:
         self.data_path = self.data_config["data_path"]
         
         self.experiment_config = config["experiment"]
-        self.output_path = self.experiment_config.get("output_path", ".")
+        self.output_path = self.experiment_config.get("output_dir", ".")
         if not os.path.exists(self.output_path):
             os.makedirs(self.output_path)
         
@@ -231,11 +231,11 @@ class BasePipeline:
         if dev_file is not None:
             # dev_file을 직접 지정한 경우, 이 경우에는 이 함수를 호출하지 않는 것을 추천합니다.
             return (
-                pd.read_csv(self.data_path + self.data_config["train_file"]),
-                pd.read_csv(self.data_path + dev_file)
+                pd.read_csv(self.data_path + "/" + self.data_config["train_file"]),
+                pd.read_csv(self.data_path + "/" + dev_file)
             )
         else: # splited
-            all_df = pd.read_csv(self.data_path + self.data_config["train_file"])
+            all_df = pd.read_csv(self.data_path + "/" + self.data_config["train_file"])
             valid_df_ids = set(eval_dataset["id"]) if eval_dataset is not None else set()
             train_df = all_df[~all_df["id"].isin(valid_df_ids)]
             eval_df = all_df[all_df["id"].isin(valid_df_ids)]
