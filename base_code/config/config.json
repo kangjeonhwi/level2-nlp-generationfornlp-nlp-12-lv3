@@ -20,6 +20,7 @@
     {
         "data_path" : "../../data",
         "train_file" : "train.csv",
-        "test_file" : "test.csv"
+        "test_file" : "test.csv",
+        "filtering_input_ids_length": 1024
     }
 }

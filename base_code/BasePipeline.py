@@ -237,7 +237,9 @@ class BasePipeline:
 
         # 데이터 분리
         # 데이터 길이 default = 1024
-        tokenized_dataset = tokenized_dataset.filter(lambda x: len(x["input_ids"]) <= 1024)  
+        filter_len = self.data_config.get("filetering_input_ids_length", 1024)
+        if filter_len > 0:
+            tokenized_dataset = tokenized_dataset.filter(lambda x: len(x["input_ids"]) <= filter_len)  
         tokenized_dataset = tokenized_dataset.train_test_split(test_size=0.1, seed=42)
 
         train_dataset = tokenized_dataset['train']
