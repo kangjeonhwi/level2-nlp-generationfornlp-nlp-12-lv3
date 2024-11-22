@@ -314,7 +314,7 @@ class BasePipeline:
                 _, eval_df = self.get_train_and_valid_df(eval_dataset)
                 processed_df = self.process_dataset(self._load_dataset(df=eval_df), mode="test")
                 output = self.do_inference(self.manager.model, processed_df)
-                output.to_csv(f"{self.config_name}-output.csv", index=False)
+                output.to_csv(f"{self.config_name}-eval-output.csv", index=False)
         
     def do_inference(self, model: AutoPeftModelForCausalLM, dataset: Dataset) -> pd.DataFrame:
         infer_results = []
