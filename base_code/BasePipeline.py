@@ -40,7 +40,7 @@ class BasePipeline:
         self.data_path = self.data_config["data_path"]
         
         self.model_config = config["model"]
-        self.model_name = self.model_config["model_name"]
+        self.model_name_or_checkpoint = self.model_config["name"]
         
         self.params = config["params"]
         
