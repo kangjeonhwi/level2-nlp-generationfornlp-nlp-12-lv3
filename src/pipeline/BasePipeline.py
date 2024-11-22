@@ -333,6 +333,7 @@ class BasePipeline:
             if last_eval_strategy == "evaluate":
                 final_metrics = self.manager.evaluate()
                 self.report_metrics(final_metrics)
+                self.save_json(final_metrics, "eval-metrics.json")
             elif last_eval_strategy == "inference":
                 _, eval_df = self.get_train_and_valid_df(eval_dataset)
                 processed_df = self.process_dataset(self._load_dataset(df=eval_df), mode="test")
