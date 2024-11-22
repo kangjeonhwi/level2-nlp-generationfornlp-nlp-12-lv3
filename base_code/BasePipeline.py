@@ -230,14 +230,14 @@ class BasePipeline:
             self.manager.apply_chat_template_and_tokenize,
             remove_columns=list(processed_dataset.features),
             batched=True,
-            num_proc=4,
+            num_proc=self.data_config.get("tokenizer_num_procs", 1),
             load_from_cache_file=True,
             desc="Tokenizing",
         )
 
         # 데이터 분리
         # 데이터 길이 default = 1024
-        filter_len = self.data_config.get("filetering_input_ids_length", 1024)
+        filter_len = self.data_config.get("filtering_input_ids_length", 1024)
         if filter_len > 0:
             tokenized_dataset = tokenized_dataset.filter(lambda x: len(x["input_ids"]) <= filter_len)  
         tokenized_dataset = tokenized_dataset.train_test_split(test_size=0.1, seed=42)
