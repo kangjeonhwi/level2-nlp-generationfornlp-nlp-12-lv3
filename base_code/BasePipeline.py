@@ -1,18 +1,16 @@
 import torch
 import numpy as np
 import pandas as pd
-import os
 from tqdm import tqdm
 import random
 import evaluate
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, Trainer
-from peft import AutoPeftModelForCausalLM, LoraConfig
-from trl import SFTTrainer, DataCollatorForCompletionOnlyLM, SFTConfig
+from peft import AutoPeftModelForCausalLM
 from datasets import Dataset
 from ast import literal_eval
 from utils.load import load_config
 import config.prompts as config_prompts
-from typing import List
+from ModelManager import ModelManager 
+from typing import Type
 
 SEED = 42
 random.seed(SEED)
@@ -26,7 +24,7 @@ torch.backends.cudnn.benchmark = False
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 class BasePipeline:
-    def __init__(self, config_name: str):
+    def __init__(self, config_name: str, Manager: Type[ModelManager]):
         """BasePipeline 클래스의 생성자입니다.
 
         Args:
@@ -39,56 +37,9 @@ class BasePipeline:
         self.data_config = config["data"]
         self.data_path = self.data_config["data_path"]
         
-        self.model_config = config["model"]
-        self.model_name_or_checkpoint = self.model_config["name"]
-        
-        self.params = config["params"]
-        
-        self.model = None
-        self.tokenizer = None
-        self.trainer = None
-
-    def formatting_prompts_func(self, example: dict) -> List[dict]:
-        """입력으로 들어온 example을 이용하여 입력 프롬프트를 생성합니다.
-
-        Args:
-            example (dict): "messages" 필드를 포함해야 합니다.
-
-        Returns:
-            dict: 입력 프롬프트를 반환합니다.
-        """
-        output_texts = []
-        for i in range(len(example["messages"])):
-            output_texts.append(
-                self.tokenizer.apply_chat_template(
-                    example["messages"][i],
-                    tokenize=False
-                )
-            )
-        return output_texts
-    
-    def tokenize(self, element: dict) -> dict:
-        """데이터셋의 각 element를 프롬프트로 변환하고 토크나이징합니다.
-
-        Args:
-            element (dict): "messages" 필드를 포함해야 합니다.
-
-        Returns:
-            dict: 토크나이징된 결과를 반환합니다.
-            - input_ids: 토큰화된 input ids
-            - attention_mask: 토큰화된 attention mask
-        """
-        outputs = self.tokenizer(
-            self.formatting_prompts_func(element),
-            truncation=False,
-            padding=False,
-            return_overflowing_tokens=False,
-            return_length=False
-        )
-        return {
-            "input_ids": outputs["input_ids"],
-            "attention_mask": outputs["attention_mask"],
-        }
+        model_config = config["model"]
+        params = config["params"]
+        self.manager = Manager(model_config, params)
     
     def preprocess_logits_for_metrics(self, logits, labels):
         logits = logits if not isinstance(logits, tuple) else logits[0]
@@ -245,9 +196,9 @@ class BasePipeline:
         acc_metric = evaluate.load("accuracy")
 
         logits, labels = evaluation_result
-
-        labels = np.where(labels != -100, labels, self.tokenizer.pad_token_id)
-        labels = self.tokenizer.batch_decode(labels, skip_special_tokens=True)
+        tokenizer = self.manager.tokenizer
+        labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
+        labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
         labels = list(map(lambda x: x.split("<end_of_turn")[0].strip(), labels))
         labels = list(map(lambda x: int_output_map[x], labels))
 
@@ -257,100 +208,6 @@ class BasePipeline:
         acc = acc_metric.compute(predictions=predictions, references=labels)
         
         return acc
-   
-    def set_model(self):
-        """모델을 불러옵니다. 모델은 self.model에 할당합니다.
-        """
-        self.model = AutoModelForCausalLM.from_pretrained(
-            self.model_name_or_checkpoint,
-            torch_dtype=torch.float32,
-            trust_remote_code=True,
-            device_map="auto"
-        ).to(DEVICE)
-        
-    def set_tokenizer(self):
-        """토크나이저를 불러옵니다. 토크나이저는 self.tokenizer에 할당합니다.
-        """
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            self.model_name_or_checkpoint,
-            trust_remote_code=True
-        )
-        self.tokenizer.chat_template = config_prompts.TEMPLATE
-        self.tokenizer.pad_token = self.tokenizer.eos_token
-        self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
-        self.tokenizer.padding_side = 'right'
-    
-    def set_data_collator(self):
-        """DataCollator 객체를 생성합니다. 객체는 self.data_collator에 할당합니다.
-        """
-        response_template = "<start_of_turn>model"
-        self.data_collator = DataCollatorForCompletionOnlyLM(
-            response_template=response_template,
-            tokenizer=self.tokenizer,
-        )
-    
-    def set_trainer(self) -> Trainer:
-        """Trainer 객체를 생성합니다. 다음 인스턴스 변수들이 존재해야 합니다.
-        - model: 훈련시킬 모델
-        - train_dataset: 훈련 데이터셋
-        - eval_dataset: 검증 데이터셋
-        - data_collator: 데이터 콜레이터 함수
-        - tokenizer: 토크나이저
-        - params: 훈련에 필요한 하이퍼파라미터
-
-        Returns:
-            Trainer: Trainer 객체를 반환합니다.
-        """
-        peft_config = LoraConfig(
-            r=6,
-            lora_alpha=8,
-            lora_dropout=0.05,
-            target_modules=['q_proj', 'k_proj'],
-            bias="none",
-            task_type="CAUSAL_LM",
-        )
-
-        sft_config = SFTConfig(
-            do_train=True,
-            do_eval=False,
-            lr_scheduler_type=self.params["lr_scheduler_type"],
-            max_seq_length=self.params["max_seq_length"],
-            output_dir=self.params["output_dir"],
-            per_device_train_batch_size=self.params["train_batch_size"],
-            per_device_eval_batch_size=self.params["eval_batch_size"],
-            num_train_epochs=self.params["epoch"],
-            learning_rate=float(self.params["learning_rate"]),
-            weight_decay=self.params["weight_decay"],
-            logging_steps=100,
-            save_strategy="epoch",
-            eval_strategy="no",
-            save_total_limit=2,
-            save_only_model=True,
-            report_to="none",
-            log_level='error'
-        )
-
-        self.trainer = SFTTrainer(
-            model=self.model,
-            train_dataset=self.train_dataset,
-            eval_dataset=self.eval_dataset,
-            data_collator=self.data_collator,
-            tokenizer=self.tokenizer,
-            compute_metrics=self.compute_metrics,
-            preprocess_logits_for_metrics=self.preprocess_logits_for_metrics,
-            peft_config=peft_config,
-            args=sft_config
-        )
-        
-        print("-" * 30)
-        print("lr_scheduler_type : {}".format(self.params["lr_scheduler_type"]))
-        print("max_seq_length : {}".format(self.params["max_seq_length"]))
-        print("train_batch_size : {}".format(self.params["train_batch_size"]))
-        print("eval_batch_size : {}".format(self.params["eval_batch_size"]))
-        print("epoch : {}".format(self.params["epoch"]))
-        print("learning_rate : {}".format(self.params["learning_rate"]))
-        print("weight_decay : {}".format(self.params["weight_decay"]))
-        print("-" * 30)
 
     def report_metrics(self, metrics):
         print("-" * 30)
@@ -361,15 +218,15 @@ class BasePipeline:
         # train task
         dataset = self._load_dataset()
         
-        if self.model is None:
-            self.set_model()
-        if self.tokenizer is None:
-            self.set_tokenizer()
+        if self.manager.model is None:
+            self.manager.set_model()
+        if self.manager.tokenizer is None:
+            self.manager.set_tokenizer()
         
         processed_dataset = self.process_dataset(dataset)
 
         tokenized_dataset = processed_dataset.map(
-            self.tokenize,
+            self.manager.apply_chat_template_and_tokenize,
             remove_columns=list(processed_dataset.features),
             batched=True,
             num_proc=4,
@@ -382,32 +239,32 @@ class BasePipeline:
         tokenized_dataset = tokenized_dataset.filter(lambda x: len(x["input_ids"]) <= 1024)  
         tokenized_dataset = tokenized_dataset.train_test_split(test_size=0.1, seed=42)
 
-        self.train_dataset = tokenized_dataset['train']
-        self.eval_dataset = tokenized_dataset['test']
+        train_dataset = tokenized_dataset['train']
+        eval_dataset = tokenized_dataset['test']
 
-        if self.data_collator is None:
-            self.set_data_collator()
+        if self.manager.data_collator is None:
+            self.manager.set_data_collator()
         
-        if self.trainer is None:
-            self.set_trainer()
+        if self.manager.trainer is None:
+            self.manager.set_trainer(train_dataset, eval_dataset, self.compute_metrics, self.preprocess_logits_for_metrics)
         
-        self.trainer.train()
-        final_metrics = self.trainer.evaluate()
+        self.manager.train()
+        final_metrics = self.manager.evaluate()
         self.report_metrics(final_metrics)
         
-    def inference(self, dataset: Dataset) -> pd.DataFrame:
+    def inference(self, model: AutoPeftModelForCausalLM, dataset: Dataset) -> pd.DataFrame:
         infer_results = []
         pred_choices_map = {0: "1", 1: "2", 2: "3", 3: "4", 4: "5"}
-        
-        self.model.eval()
+        tokenizer = self.manager.tokenizer
+        model.eval()
         with torch.inference_mode():
             for data in tqdm(dataset):
                 _id = data["id"]
                 messages = data["messages"]
                 len_choices = data["len_choices"]
 
-                outputs = self.model(
-                    self.tokenizer.apply_chat_template(
+                outputs = model(
+                    tokenizer.apply_chat_template(
                         messages,
                         tokenize=True,
                         add_generation_prompt=True,
@@ -417,7 +274,7 @@ class BasePipeline:
 
                 logits = outputs.logits[:, -1].flatten().cpu()
 
-                target_logit_list = [logits[self.tokenizer.vocab[str(i + 1)]] for i in range(len_choices)]
+                target_logit_list = [logits[tokenizer.vocab[str(i + 1)]] for i in range(len_choices)]
 
                 probs = (
                     torch.nn.functional.softmax(
@@ -433,22 +290,24 @@ class BasePipeline:
                 
         return pd.DataFrame(infer_results)
     
+    # TODO: 추론 루틴 구현
     def inference_routine(self):
         dataset = self._load_dataset(mode="test")
-        if self.model is None:
-            self.set_model()
-        elif self.trainer.state.best_model_checkpoint is not None:
-            original_model_name = self.model_name
-            self.model_name = self.trainer.state.best_model_checkpoint
-            self.set_model()
-            self.model_name = original_model_name
-        elif self.trainer is not None:
-            self.model = self.trainer.model
+        if self.manager.model is None:
+            self.manager.set_model(AutoModel=AutoPeftModelForCausalLM)
+        elif self.manager.trainer.state.best_model_checkpoint is not None:
+            original_model_name = self.manager.model_name_or_checkpoint
+            self.manager.model_name_or_checkpoint = self.manager.trainer.state.best_model_checkpoint
+            self.manager.set_model(AutoModel=AutoPeftModelForCausalLM)
+            self.manager.model_name_or_checkpoint = original_model_name
+        elif self.manager.trainer is not None:
+            self.manager.model = self.manager.trainer.model
             
-        if self.tokenizer is None:
-            self.set_tokenizer()
+        if self.manager.tokenizer is None:
+            self.manager.set_tokenizer()
 
         test_dataset = self.process_dataset(dataset, mode="test")
         output = self.inference(test_dataset)
         output.to_csv("output.csv", index=False)
         print("Successfully saved the output csv file!")
+        
