@@ -45,18 +45,18 @@ class BasePipeline:
         params = config["params"]
         self.manager = Manager(model_config, params)
         
-        self.save_config(config)
+        config["pipeline"] = self.__class__.__name__
+        config["manager"] = self.manager.__class__.__name__
+        config["version"] = load_last_commit()
+        self.save_json(config, "config.json")
         
-    def save_config(self, config: dict):
+    def save_json(self, x: dict, file_path: str):
         if not os.path.exists(self.output_path):
             os.makedirs(self.output_path)
         if not os.path.exists(f"{self.output_path}/{self.config_name}"):
             os.makedirs(f"{self.output_path}/{self.config_name}")
-        config["pipeline"] = self.__class__.__name__
-        config["manager"] = self.manager.__class__.__name__
-        config["version"] = load_last_commit()
-        with open(f"{self.output_path}/{self.config_name}/config.json", "w") as f:
-            json.dump(config, f, indent=4)
+        with open(f"{self.output_path}/{self.config_name}/{file_path}", "w") as f:
+            json.dump(x, f, indent=4)
     
     def save_df(self, df: pd.DataFrame, file_path: str):
         if not os.path.exists(self.output_path):
