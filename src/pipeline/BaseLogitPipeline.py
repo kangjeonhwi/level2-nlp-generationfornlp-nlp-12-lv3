@@ -4,7 +4,7 @@ import pandas as pd
 from tqdm import tqdm
 from datasets import Dataset
 from peft import AutoPeftModelForCausalLM
-from BasePipeline import BasePipeline
+from pipeline import BasePipeline
 
 class BaseLogitPipeline(BasePipeline):
     

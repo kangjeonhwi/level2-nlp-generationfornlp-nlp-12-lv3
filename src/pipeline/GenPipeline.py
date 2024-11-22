@@ -6,11 +6,11 @@ import torch
 from tqdm import tqdm
 from datasets import Dataset
 from peft import AutoPeftModelForCausalLM 
-from utils import StopOnText
+from .utils import StopOnText
 from transformers import StoppingCriteriaList
 
 from pipeline import BasePipeline 
-from prompts import PROMPT_GEN_REASON_QUESTION_PLUS, PROMPT_GEN_REASON_NO_QUESTION_PLUS
+from .prompts import PROMPT_GEN_REASON_QUESTION_PLUS, PROMPT_GEN_REASON_NO_QUESTION_PLUS
 
 class GenPipeline(BasePipeline):
     

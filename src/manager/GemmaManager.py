@@ -1,7 +1,7 @@
 from typing import Type, Union
 from peft import AutoPeftModelForCausalLM
 from transformers import AutoModelForCausalLM
-from ModelManager import ModelManager
+from manager import ModelManager
 
 class GemmaManager(ModelManager):
     

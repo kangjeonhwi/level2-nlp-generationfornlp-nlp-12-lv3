@@ -9,8 +9,8 @@ import evaluate
 from peft import AutoPeftModelForCausalLM
 from datasets import Dataset
 from ast import literal_eval
-from utils import load_config, load_last_commit
-from prompts import PROMPT_NO_QUESTION_PLUS, PROMPT_QUESTION_PLUS
+from .utils import load_config, load_last_commit
+from .prompts import PROMPT_NO_QUESTION_PLUS, PROMPT_QUESTION_PLUS
 from manager import ModelManager 
 from typing import Type, Tuple, Optional
 
