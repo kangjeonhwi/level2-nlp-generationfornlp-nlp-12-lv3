@@ -37,7 +37,7 @@
 
     "data" :
     {
-        "data_path" : "../../data",
+        "data_path" : "../data",
         "train_file" : "train.csv",
         "dev_file" : null,
         "test_file" : "test.csv",
