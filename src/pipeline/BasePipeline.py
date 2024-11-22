@@ -10,7 +10,7 @@ from peft import AutoPeftModelForCausalLM
 from datasets import Dataset
 from ast import literal_eval
 from utils import load_config, load_last_commit
-import prompts as config_prompts
+from prompts import PROMPT_NO_QUESTION_PLUS, PROMPT_QUESTION_PLUS
 from manager import ModelManager 
 from typing import Type, Tuple, Optional
 
@@ -137,7 +137,7 @@ class BasePipeline:
         
         # <보기>가 있을 때
         if row["question_plus"]:
-            user_message = config_prompts.PROMPT_QUESTION_PLUS.format(
+            user_message = PROMPT_QUESTION_PLUS.format(
                 paragraph=row["paragraph"],
                 question=row["question"],
                 question_plus=row["question_plus"],
@@ -145,7 +145,7 @@ class BasePipeline:
             )
         # <보기>가 없을 때
         else:
-            user_message = config_prompts.PROMPT_NO_QUESTION_PLUS.format(
+            user_message = PROMPT_NO_QUESTION_PLUS.format(
                 paragraph=row["paragraph"],
                 question=row["question"],
                 choices=choice_string,
