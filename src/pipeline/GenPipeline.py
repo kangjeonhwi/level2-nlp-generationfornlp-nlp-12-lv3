@@ -93,7 +93,7 @@ class GenPipeline(BasePipeline):
             if 'question_plus' in problems:
                 record['question_plus'] = problems['question_plus']
             records.append(record)
-        return Dataset.from_pandas(pd.DataFrame(records))
+        return pd.DataFrame(records)
     
     def report_metrics(self, metrics):
         print("-" * 30)
