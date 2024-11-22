@@ -240,10 +240,15 @@ class BasePipeline:
         filter_len = self.data_config.get("filtering_input_ids_length", 1024)
         if filter_len > 0:
             tokenized_dataset = tokenized_dataset.filter(lambda x: len(x["input_ids"]) <= filter_len)  
-        tokenized_dataset = tokenized_dataset.train_test_split(test_size=0.1, seed=42)
+        test_size = float(self.data_config.get("test_size", 0.1))
+        if test_size > 0:
+            tokenized_dataset = tokenized_dataset.train_test_split(test_size=0.1, seed=42)
 
-        train_dataset = tokenized_dataset['train']
-        eval_dataset = tokenized_dataset['test']
+            train_dataset = tokenized_dataset['train']
+            eval_dataset = tokenized_dataset['test']
+        else:
+            train_dataset = tokenized_dataset
+            eval_dataset = None
 
         if self.manager.data_collator is None:
             self.manager.set_data_collator()
@@ -252,8 +257,9 @@ class BasePipeline:
             self.manager.set_trainer(train_dataset, eval_dataset, self.compute_metrics, self.preprocess_logits_for_metrics)
         
         self.manager.train()
-        final_metrics = self.manager.evaluate()
-        self.report_metrics(final_metrics)
+        if test_size > 0:
+            final_metrics = self.manager.evaluate()
+            self.report_metrics(final_metrics)
         
     def do_inference(self, model: AutoPeftModelForCausalLM, dataset: Dataset) -> pd.DataFrame:
         infer_results = []
