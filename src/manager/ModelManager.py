@@ -145,6 +145,7 @@ class ModelManager(ABC):
             logging_steps=self.params["logging_steps"],
             save_strategy=self.params["save_strategy"],
             eval_strategy=self.params["eval_strategy"],
+            eval_steps=self.params["eval_steps"],
             fp16=self.params["fp16"],
             fp16_full_eval=self.params["fp16_full_eval"],
             load_best_model_at_end=self.params["load_best_model_at_end"],

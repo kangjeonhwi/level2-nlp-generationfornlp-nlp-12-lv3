@@ -24,6 +24,7 @@
 
         "do_eval" : true,
         "eval_strategy" : "epoch",
+        "eval_steps" : null,
         "load_best_model_at_end" : false,
         "metric_for_best_model" : "eval_loss",
         "greater_is_better" : false

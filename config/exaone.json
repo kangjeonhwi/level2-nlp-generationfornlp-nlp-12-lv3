@@ -20,10 +20,11 @@
         "warmup_ratio" : 0.1,
 
         "logging_steps" : 100,
-        "save_strategy" : "epoch",
+        "save_strategy" : "steps",
 
         "do_eval" : true,
-        "eval_strategy" : "epoch",
+        "eval_strategy" : "steps",
+        "eval_steps" : 500,
         "load_best_model_at_end" : true,
         "metric_for_best_model" : "eval_loss",
         "greater_is_better" : false
