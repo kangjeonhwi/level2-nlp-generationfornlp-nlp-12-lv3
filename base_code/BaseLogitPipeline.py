@@ -8,7 +8,7 @@ from BasePipeline import BasePipeline
 
 class BaseLogitPipeline(BasePipeline):
     
-    def do_inference(self, model: AutoPeftModelForCausalLM, dataset: Dataset) -> DataFrame:
+    def do_inference(self, model: AutoPeftModelForCausalLM, dataset: Dataset) -> pd.DataFrame:
         infer_results = []
         pred_choices_map = {0: "1", 1: "2", 2: "3", 3: "4", 4: "5"}
         tokenizer = self.manager.tokenizer
