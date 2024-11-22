@@ -1,14 +1,12 @@
 import argparse
 import json
-from pipeline import BasePipeline
-from manager import BaselineManager
 
 def get_model_name(config):
     with open(config + ".json", "r") as f:
         config = json.load(f)
     return config["model"]["name"]
 
-if __name__ == "__main__":
+def main(Pipeline, Manager):
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default="./config/baseline", help="path where config json is store")
     parser.add_argument("--train", action="store_true", help="train the model")
@@ -24,7 +22,7 @@ if __name__ == "__main__":
         args.train = True
         args.inference = True
     
-    pipeline = BasePipeline(args.config, BaselineManager)
+    pipeline = Pipeline(args.config, Manager)
     
     if args.train:
         pipeline.train()
@@ -32,3 +30,11 @@ if __name__ == "__main__":
         if not args.train and not "checkpoint" in get_model_name(args.config):
             print("! ! ! No checkpoint found. Vanilla model will be used for inference. ! ! !")
         pipeline.inference()
+        
+if __name__ == "__main__":
+    from pipeline import BasePipeline
+    from manager import BaselineManager
+    main(
+        BasePipeline,
+        BaselineManager
+    )
