@@ -20,6 +20,7 @@
     {
         "data_path" : "../../data",
         "train_file" : "train.csv",
+        "dev_file" : null,
         "test_file" : "test.csv",
         "filtering_input_ids_length": 1024,
         "tokenizer_num_procs": 4,

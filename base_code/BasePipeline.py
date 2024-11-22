@@ -81,7 +81,7 @@ class BasePipeline:
         csv 파일을 로드하여 허깅페이스 Dataset 형태로 반환합니다.
         
         Args:
-            mode (str): 데이터셋 모드 (train, test 중 하나)
+            mode (str): 데이터셋 모드 (train, dev, test 중 하나)
         
         Returns:
             Dataset: 데이터셋
@@ -90,6 +90,8 @@ class BasePipeline:
         file_name = None
         if mode == "test":
             file_name = self.data_config["test_file"]
+        elif mode == "dev":
+            file_name = self.data_config["dev_file"]
         elif mode == "train":
             file_name = self.data_config["train_file"]
         else:
@@ -242,12 +244,28 @@ class BasePipeline:
         filter_len = self.data_config.get("filtering_input_ids_length", 1024)
         if filter_len > 0:
             tokenized_dataset = tokenized_dataset.filter(lambda x: len(x["input_ids"]) <= filter_len)  
+        
         test_size = float(self.data_config.get("test_size", 0.1))
-        if test_size > 0:
+        dev_file = self.data_config.get("dev_file", None)
+        if test_size > 0 and dev_file is not None:
             tokenized_dataset = tokenized_dataset.train_test_split(test_size=0.1, seed=42)
 
             train_dataset = tokenized_dataset['train']
             eval_dataset = tokenized_dataset['test']
+        elif dev_file is not None: 
+            train_dataset = tokenized_dataset
+            
+            processed_dev_dataset = self.process_dataset(self._load_dataset(mode="dev"))
+            tokenized_dev_dataset = processed_dev_dataset.map(
+                self.manager.apply_chat_template_and_tokenize,
+                remove_columns=list(processed_dataset.features),
+                batched=True,
+                num_proc=self.data_config.get("tokenizer_num_procs", 1),
+                load_from_cache_file=True,
+                desc="Tokenizing",
+            )
+            
+            eval_dataset = tokenized_dev_dataset
         else:
             train_dataset = tokenized_dataset
             eval_dataset = None
@@ -260,7 +278,7 @@ class BasePipeline:
         
         last_eval_strategy = self.experiment_config.get("last_eval_strategy", "no")
         self.manager.train()
-        if test_size > 0 and not last_eval_strategy == "no":
+        if (test_size > 0 or dev_file is not None) and not last_eval_strategy == "no":
             if last_eval_strategy == "evaluate":
                 final_metrics = self.manager.evaluate()
                 self.report_metrics(final_metrics)
