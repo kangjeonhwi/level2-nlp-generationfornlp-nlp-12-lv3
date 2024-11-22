@@ -2,8 +2,12 @@ import numpy as np
 from ast import literal_eval
 from evaluate import load
 import pandas as pd
-from datasets import Dataset 
-
+import torch
+from tqdm import tqdm
+from datasets import Dataset
+from peft import AutoPeftModelForCausalLM 
+from utils import StopOnText
+from transformers import StoppingCriteriaList
 
 from pipeline import BasePipeline 
 from prompts import PROMPT_GEN_REASON_QUESTION_PLUS, PROMPT_GEN_REASON_NO_QUESTION_PLUS
@@ -95,3 +99,38 @@ class GenPipeline(BasePipeline):
         print("-" * 30)
         print("BLEU Score: ", metrics["eval_bleu"])
         print("-" * 30)
+
+    def do_inference(self, model: AutoPeftModelForCausalLM, dataset: Dataset) -> pd.DataFrame:
+        tokenizer = self.manager.tokenizer
+        stop_criteria = StopOnText(tokenizer, '<end_of_turn>')
+        stopping_criteria = StoppingCriteriaList([stop_criteria])
+        
+        infer_results = []
+        model.eval()
+        with torch.inference_mode():
+            for data in tqdm(dataset):
+                _id = data["id"]
+                messages = data["messages"]
+                len_choices = data["len_choices"]
+
+                chat = tokenizer.apply_chat_template(
+                    messages,
+                    tokenize=True,
+                    add_generation_prompt=True,
+                    return_tensors="pt",
+                ).to(self.device)
+                
+                outputs = model.generate(
+                    input_ids = chat,
+                    max_length = model.config.max_position_embeddings,
+                    stopping_criteria=stopping_criteria
+                ) 
+                
+                outputs = tokenizer.decode(outputs
+                    .detach()
+                    .cpu()
+                    .numpy()[0])
+                print(outputs)
+                
+                infer_results.append({"id": _id, "reason": outputs})
+        return pd.DataFrame(infer_results)
