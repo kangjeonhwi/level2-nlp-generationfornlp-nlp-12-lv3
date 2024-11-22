@@ -1,4 +1,5 @@
 import os
+import json
 import torch
 import numpy as np
 import pandas as pd
@@ -8,7 +9,7 @@ import evaluate
 from peft import AutoPeftModelForCausalLM
 from datasets import Dataset
 from ast import literal_eval
-from utils.load import load_config
+from utils.load import load_config, load_last_commit
 import config.prompts as config_prompts
 from ModelManager import ModelManager 
 from typing import Type, Tuple, Optional
@@ -43,6 +44,19 @@ class BasePipeline:
         model_config = config["model"]
         params = config["params"]
         self.manager = Manager(model_config, params)
+        
+        self.save_config(config)
+        
+    def save_config(self, config: dict):
+        if not os.path.exists(self.output_path):
+            os.makedirs(self.output_path)
+        if not os.path.exists(f"{self.output_path}/{self.config_name}"):
+            os.makedirs(f"{self.output_path}/{self.config_name}")
+        config["pipeline"] = self.__class__.__name__
+        config["manager"] = self.manager.__class__.__name__
+        config["version"] = load_last_commit()
+        with open(f"{self.output_path}/{self.config_name}/config.json", "w") as f:
+            json.dump(config, f, indent=4)
     
     def save_df(self, df: pd.DataFrame, file_path: str):
         if not os.path.exists(self.output_path):
