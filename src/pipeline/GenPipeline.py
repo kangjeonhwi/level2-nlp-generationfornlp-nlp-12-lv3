@@ -79,6 +79,7 @@ class GenPipeline(BasePipeline):
   
     def load_dataset(self, dataset: pd.DataFrame) -> pd.DataFrame:
         records = []
+        dataset = dataset[dataset["reason"].notnull()]
         for _, row in dataset.iterrows():
             problems = literal_eval(row['problems'])
             record = {
@@ -111,7 +112,6 @@ class GenPipeline(BasePipeline):
             for data in tqdm(dataset):
                 _id = data["id"]
                 messages = data["messages"]
-                len_choices = data["len_choices"]
 
                 chat = tokenizer.apply_chat_template(
                     messages,
