@@ -1,9 +1,9 @@
 from .ModelManager import ModelManager
-from .GemmaManager import GemmaManager
+from .BaselineManager import BaselineManager
 from .EXAONEManager import EXAONEManager
 
 __all__ = [
     "ModelManager",
-    "GemmaManager",
+    "BaselineManager",
     "EXAONEManager"
 ]
