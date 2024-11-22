@@ -22,8 +22,6 @@ torch.cuda.manual_seed_all(SEED)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-
 class BasePipeline:
     def __init__(self, config_name: str, Manager: Type[ModelManager]):
         """BasePipeline 클래스의 생성자입니다.
@@ -33,6 +31,7 @@ class BasePipeline:
         """
         config = load_config(config_name)
         
+        self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.config_name = config_name.split("/")[-1]
         
         self.data_config = config["data"]
@@ -342,7 +341,7 @@ class BasePipeline:
                         tokenize=True,
                         add_generation_prompt=True,
                         return_tensors="pt",
-                    ).to(DEVICE)
+                    ).to(self.device)
                 )
 
                 logits = outputs.logits[:, -1].flatten().cpu()
