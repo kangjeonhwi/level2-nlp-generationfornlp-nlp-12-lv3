@@ -42,8 +42,9 @@ class BasePipeline:
         self.manager = Manager(model_config, params)
     
     def preprocess_logits_for_metrics(self, logits, labels):
+        tokenizer = self.manager.tokenizer
         logits = logits if not isinstance(logits, tuple) else logits[0]
-        logit_idx = [self.tokenizer.vocab["1"], self.tokenizer.vocab["2"], self.tokenizer.vocab["3"], self.tokenizer.vocab["4"], self.tokenizer.vocab["5"]]
+        logit_idx = [tokenizer.vocab["1"], tokenizer.vocab["2"], tokenizer.vocab["3"], tokenizer.vocab["4"], tokenizer.vocab["5"]]
         logits = logits[:, -2, logit_idx] # -2: answer token, -1: eos token
         return logits
     
@@ -186,7 +187,7 @@ class BasePipeline:
 
             # chat message 형식으로 변환
             processed_dataset.append(
-                self.make_chat_message(dataset[i], user_message, mode=mode)
+                self._make_chat_message(dataset[i], user_message, mode=mode)
             )
         
         return Dataset.from_pandas(pd.DataFrame(processed_dataset))
