@@ -56,6 +56,7 @@ class ModelManager(ABC):
             return_length=False
         )
         return {
+            "id": element["id"],
             "input_ids": outputs["input_ids"],
             "attention_mask": outputs["attention_mask"],
         }
