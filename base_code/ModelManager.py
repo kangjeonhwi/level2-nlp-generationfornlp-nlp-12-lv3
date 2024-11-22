@@ -61,7 +61,7 @@ class ModelManager(ABC):
         }
     
     @abstractmethod
-    def set_model(self, AutoModel: Union[Type[AutoModelForCausalLM], Type[AutoPeftModelForCausalLM]]):
+    def set_model(self, AutoModel: Union[Type[AutoModelForCausalLM], Type[AutoPeftModelForCausalLM]] = AutoModelForCausalLM):
         """모델을 불러옵니다. 모델은 self.model에 할당합니다.
 
         Args:
