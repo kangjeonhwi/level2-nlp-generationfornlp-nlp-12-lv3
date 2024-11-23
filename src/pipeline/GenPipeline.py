@@ -80,7 +80,7 @@ class GenPipeline(BasePipeline):
     def load_dataset(self, dataset: pd.DataFrame) -> pd.DataFrame:
         records = []
         if "reason" not in dataset.columns:
-            dataset["reason"] = None
+            dataset["reason"] = ""
         dataset = dataset[dataset["reason"].notnull()]
         for _, row in dataset.iterrows():
             problems = literal_eval(row['problems'])
@@ -139,6 +139,8 @@ class GenPipeline(BasePipeline):
     
     def inference(self) -> pd.DataFrame:
         output = super().inference()
+        if self.manager.data_collator is None:
+            self.manager.set_data_collator()
         test_df = pd.read_csv(self.data_path + "/" + self.data_config["test_file"])
         output = output[output['reason'].notnull()]
         def get_only_cot(x):
