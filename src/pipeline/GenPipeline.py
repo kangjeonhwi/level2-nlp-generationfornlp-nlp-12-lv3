@@ -145,7 +145,7 @@ class GenPipeline(BasePipeline):
         output = output[output['reason'].notnull()]
         def get_only_cot(x):
             x = x.split(self.manager.data_collator.response_template)[-1]
-            x = x.replace(self.tokenizer.eos_token, "")
+            x = x.replace(self.manager.tokenizer.eos_token, "")
             return x
         
         test_df['reason'] = output['reason'].apply(get_only_cot)
