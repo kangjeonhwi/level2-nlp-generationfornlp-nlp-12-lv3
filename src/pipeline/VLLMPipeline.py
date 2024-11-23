@@ -11,7 +11,7 @@ from vllm import LLM, SamplingParams
 class VLLMPipeline(GenPipeline):
     def call_vllm(self, model: AutoPeftModelForCausalLM, model_name_or_checkpoint: str):
         checkpoint = model_name_or_checkpoint.split("/")[-1]
-        save_path = f"{self.params.output_dir}/merged-{checkpoint}"
+        save_path = f"{self.manager.params.output_dir}/merged-{checkpoint}"
         if not os.path.exists(save_path):
             merged = model.merge_and_unload()
             merged.save_pretrained(save_path)
@@ -29,7 +29,7 @@ class VLLMPipeline(GenPipeline):
         return self.manager.model 
     
     def do_inference(self, model: AutoPeftModelForCausalLM, dataset: Dataset) -> DataFrame:
-        max_tokens = self.model.config.max_position_embeddings
+        max_tokens = self.manager.model.config.max_position_embeddings
         llm = self.call_vllm(model, self.manager.model_name_or_checkpoint)
         infer_results = []
         tokenizer = self.manager.tokenizer
