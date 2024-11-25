@@ -77,7 +77,8 @@ class GenPipeline(BasePipeline):
   
         return result
   
-    def load_dataset(self, dataset: pd.DataFrame) -> pd.DataFrame:
+    @classmethod
+    def load_dataset(cls, dataset: pd.DataFrame) -> pd.DataFrame:
         records = []
         if "reason" not in dataset.columns:
             dataset["reason"] = ""

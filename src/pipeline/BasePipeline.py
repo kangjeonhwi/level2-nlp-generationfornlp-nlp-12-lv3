@@ -72,7 +72,8 @@ class BasePipeline:
         logits = logits[:, -2, logit_idx] # -2: answer token, -1: eos token
         return logits
     
-    def load_dataset(self, dataset: pd.DataFrame) -> pd.DataFrame:
+    @classmethod
+    def load_dataset(cls, dataset: pd.DataFrame) -> pd.DataFrame:
         """데이터프레임을 로드하여 필요한 필드를 추가하여 데이터프레임을 반환합니다.
 
         Args:
