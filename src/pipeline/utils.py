@@ -32,4 +32,16 @@ class StopOnText(StoppingCriteria):
         # 마지막 생성된 토큰들이 stop_ids와 일치하는지 확인
         generated_text = self.tokenizer.decode(input_ids[0])
         return generated_text.endswith(self.stop_text)
-    
+
+class StopOnAnswer(StoppingCriteria):
+    def __init__(self, tokenizer, stop_text):
+        self.tokenizer = tokenizer
+        self.answer_template = stop_text
+
+    def __call__(self, input_ids, scores):
+        # 마지막 생성된 토큰들이 stop_ids와 일치하는지 확인
+        generated_text = self.tokenizer.decode(input_ids[0])
+        for choice in [1, 2, 3, 4, 5]:
+            if self.answer_template.format(choice) in generated_text:
+                return True
+        return False

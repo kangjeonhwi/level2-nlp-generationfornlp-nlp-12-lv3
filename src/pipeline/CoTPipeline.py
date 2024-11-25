@@ -1,9 +1,20 @@
 import numpy as np
+import torch
+from tqdm import tqdm
 from peft import AutoPeftModelForCausalLM
 from pandas.core.api import DataFrame as DataFrame
 from pipeline import GenPipeline
-
+from manager import ModelManager
+from transformers import StoppingCriteriaList
+from .utils import StopOnAnswer
+from typing import Type, Optional
 class CoTPipeline(GenPipeline):
+    def __init__(self, config_name: str, Manager: Type[ModelManager],
+                 answer_template: Optional[str] = None): 
+        super().__init__(config_name, Manager)
+        if answer_template is None:
+            self.answer_template = "Therefore, the following choice is the correct answer: {answer}"
+    
     def make_chat_message(self, row: dict, user_message: str) -> dict:
         return {
             "id": row["id"],
@@ -11,7 +22,7 @@ class CoTPipeline(GenPipeline):
                 {"role": "system", "content": "지문을 읽고 질문의 답을 구하세요."},
                 {"role": "user", "content": user_message},
             ],
-            "label": f"{row['reason']}\n\nTherefore, the following choice is the correct answer: {row['answer']}", 
+            "label": f"{row['reason']}\n\n" + self.answer_template.format(answer=row["answer"]), 
         }
     
     def simple_parse(self, pred: str) -> int:
@@ -50,5 +61,36 @@ class CoTPipeline(GenPipeline):
 
     def do_inference(self, model: AutoPeftModelForCausalLM, dataset: DataFrame) -> DataFrame:
         output = super().do_inference(model, dataset)
+        tokenizer = self.manager.tokenizer
+        stop_criteria = StopOnAnswer(tokenizer, self.answer_template)
+        stopping_criteria = StoppingCriteriaList([stop_criteria])
+        
+        infer_results = []
+        model.eval()
+        with torch.inference_mode():
+            for data in tqdm(dataset):
+                _id = data["id"]
+                messages = data["messages"]
+
+                chat = tokenizer.apply_chat_template(
+                    messages,
+                    tokenize=True,
+                    add_generation_prompt=True,
+                    return_tensors="pt",
+                ).to(self.device)
+                
+                outputs = model.generate(
+                    input_ids = chat,
+                    max_length = model.config.max_position_embeddings,
+                    stopping_criteria=stopping_criteria
+                ) 
+                
+                outputs = tokenizer.decode(outputs
+                    .detach()
+                    .cpu()
+                    .numpy()[0])
+                print(outputs)
+                
+                infer_results.append({"id": _id, "reason": outputs})
         output["answer"] = output["reason"].apply(self.simple_parse)
         return output
