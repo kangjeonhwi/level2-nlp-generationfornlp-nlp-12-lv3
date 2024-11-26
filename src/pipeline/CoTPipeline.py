@@ -93,7 +93,6 @@ class CoTPipeline(GenPipeline):
                     .numpy()[0])
                 print(outputs)
                 
-                infer_results.append({"id": _id, "reason": outputs})
-        output = pd.DataFrame(infer_results)
-        output["answer"] = output["reason"].apply(self.simple_parse)
+                infer_results.append({"id": _id, "reason": outputs, "reason": self.simple_parse(outputs)})
+                self.save_df(pd.DataFrame(infer_results), "tmp.csv")
         return output
