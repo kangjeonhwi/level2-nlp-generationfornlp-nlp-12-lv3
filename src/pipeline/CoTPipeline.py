@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import pandas as pd
 from tqdm import tqdm
 from peft import AutoPeftModelForCausalLM
 from pandas.core.api import DataFrame as DataFrame
@@ -93,5 +94,6 @@ class CoTPipeline(GenPipeline):
                 print(outputs)
                 
                 infer_results.append({"id": _id, "reason": outputs})
+        output = pd.DataFrame(infer_results)
         output["answer"] = output["reason"].apply(self.simple_parse)
         return output
