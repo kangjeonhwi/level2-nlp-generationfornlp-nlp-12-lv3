@@ -8,12 +8,13 @@ from manager import ModelManager
 from transformers import StoppingCriteriaList
 from .utils import StopOnAnswer
 from typing import Type, Optional
+
 class CoTPipeline(GenPipeline):
     def __init__(self, config_name: str, Manager: Type[ModelManager],
                  answer_template: Optional[str] = None): 
         super().__init__(config_name, Manager)
         if answer_template is None:
-            self.answer_template = "Therefore, the following choice is the correct answer: {answer}"
+            self.answer_template = "Therefore, the following number of choice is the correct answer: {answer}"
     
     def make_chat_message(self, row: dict, user_message: str) -> dict:
         return {
