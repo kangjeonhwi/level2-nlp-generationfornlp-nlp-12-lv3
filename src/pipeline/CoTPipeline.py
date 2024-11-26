@@ -62,7 +62,6 @@ class CoTPipeline(GenPipeline):
         return metrics
 
     def do_inference(self, model: AutoPeftModelForCausalLM, dataset: DataFrame) -> DataFrame:
-        output = super().do_inference(model, dataset)
         tokenizer = self.manager.tokenizer
         stop_criteria = StopOnAnswer(tokenizer, self.answer_template)
         stopping_criteria = StoppingCriteriaList([stop_criteria])
