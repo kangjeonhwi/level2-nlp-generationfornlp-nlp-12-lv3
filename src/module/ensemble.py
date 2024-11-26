@@ -94,10 +94,13 @@ def interactive(args):
         dirname = args.dirname
     if dirname == "":
         dirname = "data/ensemble"
-        
-    mode = input(
-        "Enter the mode of the ensemble ('v(alidation)' or 'i(nference)', default: 'v'): "
-    )
+    
+    if args.mode is None:
+        mode = input(
+            "Enter the mode of the ensemble ('v(alidation)' or 'i(nference)', default: 'v'): "
+        )
+    else:
+        mode = args.mode
     mode = 'v' if mode == "" else mode.lower()
     if mode == 'v':
         print(f"Validation mode is selected. Select only file names that end with '{val_suffix}'.")
@@ -176,6 +179,12 @@ def interactive(args):
     if not os.path.exists(f"{dirname}/output"):
         os.mkdir(f"{dirname}/output")
     output.to_csv(f"{dirname}/output/{output_name}{suffix}", index=False)
+    
+    if mode == 'v':
+        y_or_n = input("Do you want to ensemble the infence files with the same weights? [y/n]: ")
+        if y_or_n == 'y':
+            inf_output, _ = ensemble(weights, file_names, 'i', args)
+            inf_output.to_csv(f"{dirname}/output/{output_name}.csv", index=False)
 
 def loop_ensemble(args):
     if args.dirname is None:
@@ -234,6 +243,7 @@ def main():
     parser.add_argument("-t", "--target", type=float, default=None, help="target accuracy")
     parser.add_argument("-v", "--vote", type=str, default="soft", help="voting method")
     parser.add_argument("-t", "--temperature", type=float, default=1.0, help="temperature for soft voting")
+    parser.add_argument("-m", "--mode", type=str, default=None, help="mode of ensemble (v or i)")
     args = parser.parse_args()
     if args.target is not None:
         loop_ensemble(args)
