@@ -1,4 +1,4 @@
-import os
+# import os
 import torch
 from trl import DataCollatorForCompletionOnlyLM
 from typing import Type, Union
@@ -9,7 +9,7 @@ from manager import ModelManager
 class MistralManager(ModelManager):
     def set_model(self, AutoModel: Union[Type[AutoModelForCausalLM] | Type[AutoPeftModelForCausalLM]] = AutoModelForCausalLM):
         
-        os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:8"
+        # os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:8"
         
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -18,7 +18,7 @@ class MistralManager(ModelManager):
             bnb_4bit_use_double_quant=True,  # QLoRA에서 double quantization 사용
         )
         
-        self.model = AutoModelForCausalLM.from_pretrained(
+        self.model = AutoModel.from_pretrained(
             self.model_name_or_checkpoint,
             torch_dtype=torch.float16,
             quantization_config=bnb_config,
