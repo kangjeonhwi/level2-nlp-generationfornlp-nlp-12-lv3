@@ -37,3 +37,28 @@ class MistralManager(ModelManager):
             response_template=response_template,
             tokenizer=self.tokenizer,
         )
+        
+    def apply_chat_template_and_tokenize(self, element: dict) -> dict:
+        """데이터셋의 각 element를 프롬프트로 변환하고 토크나이징합니다.
+
+        Args:
+            element (dict): "messages" 필드를 포함해야 합니다.
+
+        Returns:
+            dict: 토크나이징된 결과를 반환합니다.
+            - input_ids: 토큰화된 input ids
+            - attention_mask: 토큰화된 attention mask
+        """
+        outputs = self.tokenizer(
+            self.formatting_prompts_func(element),
+            truncation=True,
+            padding=False,
+            max_length=2048,
+            return_overflowing_tokens=False,
+            return_length=False
+        )
+        return {
+            "id": element["id"],
+            "input_ids": outputs["input_ids"],
+            "attention_mask": outputs["attention_mask"],
+        }
