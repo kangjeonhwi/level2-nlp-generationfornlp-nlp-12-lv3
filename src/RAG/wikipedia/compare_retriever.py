@@ -19,31 +19,63 @@ def load_retrievers():
     
     return bm25_retriever, dense_retriever, st_model
 
-def get_hybrid_results(query, bm25_retriever, st_model, mecab, k=5):
+def get_hybrid_results(query, question, choices, bm25_retriever, st_model, mecab, k=5):
+    """
+    query, question과 choices를 모두 고려하여 가장 관련성 높은 문서들을 반환
+    """
     # BM25로 후보 문서 검색
     query_tokens = bm25s.tokenize(' '.join(mecab.morphs(query)))
-    bm25_results, bm25_scores = bm25_retriever.retrieve(query_tokens, k=k*4)  # 더 많은 후보 검색
+    bm25_results, bm25_scores = bm25_retriever.retrieve(query_tokens, k=k*4)
     bm25_docs = [result['text'] for result in bm25_results[0]]
     
     # 문서들을 임베딩
     doc_embeddings = st_model.encode(bm25_docs, convert_to_tensor=True)
-    query_embedding = st_model.encode(query, convert_to_tensor=True)
     
-    # 의미적 유사도 계산
-    similarities = util.pytorch_cos_sim(query_embedding, doc_embeddings)[0]
+    # Paragraph 유사도 계산
+    paragraph_embedding = st_model.encode(query, convert_to_tensor=True)
+    paragraph_similarities = util.pytorch_cos_sim(paragraph_embedding, doc_embeddings)[0]
     
-    # 상위 k개 선택
-    top_k_indices = torch.topk(similarities, k=k).indices
+    # Question 유사도 계산
+    question_embedding = st_model.encode(question, convert_to_tensor=True)
+    question_similarities = util.pytorch_cos_sim(question_embedding, doc_embeddings)[0]
     
-    hybrid_results = []
-    hybrid_scores = []
-    for idx in top_k_indices:
-        hybrid_results.append(bm25_docs[idx])
-        hybrid_scores.append(float(similarities[idx]))
+    # Choices 각각의 유사도 계산
+    choices_embeddings = st_model.encode(choices, convert_to_tensor=True)
+    choices_similarities = util.pytorch_cos_sim(choices_embeddings, doc_embeddings)
     
-    return hybrid_results, hybrid_scores
+    # 선택된 문서들을 저장할 set
+    selected_docs = set()
+    selected_scores = {}
+    
+    # Paragraph에 대해 가장 유사도가 높은 문서 선택
+    paragraph_top_idx = torch.argmax(paragraph_similarities).item()
+    selected_docs.add(bm25_docs[paragraph_top_idx])
+    selected_scores[bm25_docs[paragraph_top_idx]] = float(paragraph_similarities[paragraph_top_idx])
+    
+    # Question에 대해 가장 유사도가 높은 문서 선택
+    question_top_idx = torch.argmax(question_similarities).item()
+    selected_docs.add(bm25_docs[question_top_idx])
+    selected_scores[bm25_docs[question_top_idx]] = max(
+        selected_scores.get(bm25_docs[question_top_idx], 0),
+        float(question_similarities[question_top_idx])
+    )
+    
+    # 각 Choice별로 가장 유사도가 높은 문서 선택
+    for idx, choice in enumerate(choices):
+        choice_similarities = choices_similarities[idx]
+        top_idx = torch.argmax(choice_similarities).item()
+        selected_docs.add(bm25_docs[top_idx])
+        selected_scores[bm25_docs[top_idx]] = max(
+            selected_scores.get(bm25_docs[top_idx], 0),
+            float(choice_similarities[top_idx])
+        )
+    
+    final_docs = list(selected_docs)
+    final_scores = [selected_scores[doc] for doc in final_docs]
+    
+    return final_docs, final_scores
 
-def compare_retrievers(query, bm25_retriever, dense_retriever, st_model, k=5):
+def compare_retrievers(query, question, choices, bm25_retriever, dense_retriever, st_model, k=5):
     mecab = Mecab()
     
     # BM25 검색
@@ -52,9 +84,6 @@ def compare_retrievers(query, bm25_retriever, dense_retriever, st_model, k=5):
     
     # Dense 검색
     dense_results, dense_scores = dense_retriever.retrieve(query, k=k)
-    
-    # Hybrid 검색
-    hybrid_results, hybrid_scores = get_hybrid_results(query, bm25_retriever, st_model, mecab, k=k)
     
     print("=== Query ===")
     print(query)
@@ -72,23 +101,22 @@ def compare_retrievers(query, bm25_retriever, dense_retriever, st_model, k=5):
         print()
     
     print("\n=== Hybrid Results ===")
-    for i in range(len(hybrid_results)):
-        print(f"Semantic Similarity Score: {hybrid_scores[i]:.4f}")
-        print(f"Text: {hybrid_results[i][:200]}...")
+    hybrid_docs, hybrid_scores = get_hybrid_results(
+        query, question, choices, bm25_retriever, st_model, mecab, k=k
+    )
+    for doc, score in zip(hybrid_docs, hybrid_scores):
+        print(f"Semantic Similarity Score: {score:.4f}")
+        print(f"Text: {doc[:200]}...")
         print()
 
 if __name__ == "__main__":
     # Retriever 로드
     bm25_retriever, dense_retriever, st_model = load_retrievers()
     
-    # 테스트 쿼리
-    test_queries = [
-        "이 날 소정방이 부총관 김인문 등과 함께 기 벌포에 도착하여 백제 군사와 마주쳤다. …(중략) …소정방이 신라군이 늦게 왔다는 이유로 군문에서 신라 독군 김문영의 목을 베고자 하니, 그가 군사들 앞에 나아가 “황산 전투를 보지도 않고 늦게 온 것을 이유로 우리를 죄 주려 하는구나. 죄도 없이 치욕을 당할 수는 없으니, 결단코 먼저 당나라 군사와 결전을 한 후에 백제를 쳐야겠다.”라고 말하였다.",
-        "(가)은/는 의병계열과 애국계몽 운동 계열의 비밀결사가 모여 결성된 조직으로, 총사령 박상진을 중심으로 독립군 양성을 목적으로 하였다.",
-        "○장수왕은 남 진 정책의 일환으로 수도를 이곳으로 천도 하였다. ○묘청은 이곳으로 수도를 옮길 것을 주장하였다."
-    ]
+    # 테스트를 위한 예시 데이터
+    query = "○장수왕은 남 진 정책의 일환으로 수도를 이곳으로 천도 하였다. ○묘청은 이곳으로 수도를 옮길 것을 주장하였다."
+    question = "밑줄 친 ‘이곳’에 대한 설명으로 옳은 것은?"
+    choices = ['쌍성총관부가 설치되었다 .', '망이 ㆍ망소이가 반란을 일으켰다 .', '제너럴 셔먼호 사건이 발생하였다 .', '1923년 조선 형평사가 결성되었다 .']
     
-    # 비교 실행
-    for query in test_queries:
-        compare_retrievers(query, bm25_retriever, dense_retriever, st_model)
-        print("\n" + "="*80 + "\n")
+    compare_retrievers(query, question, choices, bm25_retriever, dense_retriever, st_model)
+    print("\n" + "="*80 + "\n")
