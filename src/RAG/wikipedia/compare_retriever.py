@@ -1,32 +1,64 @@
 import bm25s
 from dense_retriever import DenseRetriever
 from konlpy.tag import Mecab
+from sentence_transformers import SentenceTransformer, util
+import torch
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
 def load_retrievers():
-    # BM25 로드
     print("Loading BM25 retriever...")
     bm25_retriever = bm25s.BM25.load("wikipedia_index_bm25", load_corpus=True)
     
-    # Dense Retriever 로드
     print("Loading Dense retriever...")
     dense_retriever = DenseRetriever.load("wikipedia_index_dense", load_corpus=True)
     
-    return bm25_retriever, dense_retriever
+    print("Loading SentenceTransformer...")
+    st_model = SentenceTransformer('jhgan/ko-sbert-nli')
+    
+    return bm25_retriever, dense_retriever, st_model
 
-def compare_retrievers(query, bm25_retriever, dense_retriever, k=5):
-    # BM25 검색
+def get_hybrid_results(query, bm25_retriever, st_model, mecab, k=5):
+    # BM25로 후보 문서 검색
+    query_tokens = bm25s.tokenize(' '.join(mecab.morphs(query)))
+    bm25_results, bm25_scores = bm25_retriever.retrieve(query_tokens, k=k*4)  # 더 많은 후보 검색
+    bm25_docs = [result['text'] for result in bm25_results[0]]
+    
+    # 문서들을 임베딩
+    doc_embeddings = st_model.encode(bm25_docs, convert_to_tensor=True)
+    query_embedding = st_model.encode(query, convert_to_tensor=True)
+    
+    # 의미적 유사도 계산
+    similarities = util.pytorch_cos_sim(query_embedding, doc_embeddings)[0]
+    
+    # 상위 k개 선택
+    top_k_indices = torch.topk(similarities, k=k).indices
+    
+    hybrid_results = []
+    hybrid_scores = []
+    for idx in top_k_indices:
+        hybrid_results.append(bm25_docs[idx])
+        hybrid_scores.append(float(similarities[idx]))
+    
+    return hybrid_results, hybrid_scores
+
+def compare_retrievers(query, bm25_retriever, dense_retriever, st_model, k=5):
     mecab = Mecab()
+    
+    # BM25 검색
     query_tokens = bm25s.tokenize(' '.join(mecab.morphs(query)))
     bm25_results, bm25_scores = bm25_retriever.retrieve(query_tokens, k=k)
     
     # Dense 검색
     dense_results, dense_scores = dense_retriever.retrieve(query, k=k)
     
+    # Hybrid 검색
+    hybrid_results, hybrid_scores = get_hybrid_results(query, bm25_retriever, st_model, mecab, k=k)
+    
     print("=== Query ===")
     print(query)
+    
     print("\n=== BM25 Results ===")
     for i in range(len(bm25_results[0])):
         print(f"Score: {float(bm25_scores[0][i]):.4f}")
@@ -38,10 +70,16 @@ def compare_retrievers(query, bm25_retriever, dense_retriever, k=5):
         print(f"Score: {float(dense_scores[i]):.4f}")
         print(f"Text: {dense_results[0][i]['text'][:200]}...")
         print()
+    
+    print("\n=== Hybrid Results ===")
+    for i in range(len(hybrid_results)):
+        print(f"Semantic Similarity Score: {hybrid_scores[i]:.4f}")
+        print(f"Text: {hybrid_results[i][:200]}...")
+        print()
 
 if __name__ == "__main__":
     # Retriever 로드
-    bm25_retriever, dense_retriever = load_retrievers()
+    bm25_retriever, dense_retriever, st_model = load_retrievers()
     
     # 테스트 쿼리
     test_queries = [
@@ -52,5 +90,5 @@ if __name__ == "__main__":
     
     # 비교 실행
     for query in test_queries:
-        compare_retrievers(query, bm25_retriever, dense_retriever)
+        compare_retrievers(query, bm25_retriever, dense_retriever, st_model)
         print("\n" + "="*80 + "\n")
