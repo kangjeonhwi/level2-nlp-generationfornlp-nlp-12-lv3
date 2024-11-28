@@ -146,7 +146,7 @@ def interactive(args):
             print(f"({weight})" if weight != 0 else "")
     
         choice = input("Enter the number of the file you want to check [0-9,a,s,d]: ")
-        if choice == 's':
+        if choice == 's' or choice == "":
             break
         elif choice == 'a':
             page = max(1, page - 1)
