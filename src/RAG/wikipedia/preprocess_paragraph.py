@@ -35,11 +35,14 @@ def clean_text(text):
     # 1. HTML 언어 기호 복원 (예: &amp; -> &)
     text = html.unescape(text)
 
-    # 2. 특수 기호 및 formula_* 같은 패턴 제거
+    # 2. 소제목 제거 (예: == 소제목 ==)
+    text = re.sub(r"^==.*?==\s*$", "", text, flags=re.MULTILINE)  # 소제목 패턴 제거
+
+    # 3. 특수 기호 및 formula_* 같은 패턴 제거
     text = re.sub(r"formula_\d+", "", text)  # formula_숫자 제거
     text = re.sub(r"[^\w\s.,!?가-힣]", " ", text)  # 알파벳, 숫자, 한글, 공백, 기본 특수문자 제외
 
-    # 3. 불필요한 공백 제거
+    # 4. 불필요한 공백 제거
     text = re.sub(r"[ \t]+", " ", text)  # 공백만 압축
     return text.strip()
 
@@ -48,6 +51,21 @@ def split_into_paragraphs(text):
     paragraphs = text.split("\n")  # 줄바꿈을 기준으로 분리
     paragraphs = [p.strip() for p in paragraphs if p.strip()]  # 빈 문단 제거
     return paragraphs
+
+def is_valid_paragraph(text):
+    # 최소 길이 체크 (예: 50자 이상)
+    if len(text) < 50:
+        return False
+    
+    # 마침표로만 끝나는 한 단어 문단 체크
+    if re.match(r'^[가-힣A-Za-z]+\.$', text.strip()):
+        return False
+    
+    # 소제목 형태 체크
+    if text.endswith('.') and len(text.split()) <= 2:
+        return False
+        
+    return True
 
 # 데이터 로드 및 처리
 print("Loading and processing JSON lines data...")
@@ -59,12 +77,14 @@ for doc in tqdm(wiki_data, desc="Processing documents"):
     cleaned_content = clean_text(doc["content"])
     paragraphs = split_into_paragraphs(cleaned_content)
     for i, paragraph in enumerate(paragraphs):
-        processed_data.append({
-            "id": f"{doc['id']}_{i}",  # 고유 ID: 문서 ID + 문단 번호
-            "url": doc["url"],
-            "title": doc["title"],
-            "paragraph": paragraph
-        })
+        # 유효한 문단만 추가
+        if is_valid_paragraph(paragraph):
+            processed_data.append({
+                "id": f"{doc['id']}_{i}",
+                "url": doc["url"],
+                "title": doc["title"],
+                "paragraph": paragraph
+            })
 
 # JSON 저장
 output_json = "cleaned_wikipedia_paragraphs.json"
