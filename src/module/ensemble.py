@@ -38,6 +38,7 @@ def voting(weights, predictions):
     for i in range(5):
         output_df[f"prob_{i+1}"] = [ensembled[id][i] for id in ensembled]
     output_df["answer"] = output_df.apply(lambda x: np.argmax(x[1:6]) + 1, axis=1)
+    return output_df
     
 def use_soft(row, temperature: float = 1.0):
     arr = []
@@ -62,12 +63,12 @@ def ensemble(weights, file_names, mode, args):
         suffix = (val_suffix if mode == 'v' else "") + ".csv"
         df = pd.read_csv(f"{args.dirname}/{file_name}{suffix}")
         for i, row in df.iterrows():
-            if args.how_to_vote == "soft":
+            if args.vote == "soft":
                 prob = use_soft(row, temperature=args.temperature)
-            elif args.how_to_vote == "hard":
+            elif args.vote == "hard":
                 prob = use_hard(row)
             else:
-                print(f"Invalid voting method: {args.how_to_vote}")
+                print(f"Invalid voting method: {args.vote}")
                 return
             predictions[row["id"]].append(prob)
         
@@ -94,6 +95,7 @@ def interactive(args):
         dirname = args.dirname
     if dirname == "":
         dirname = "data/ensemble"
+    args.dirname = dirname
     
     if args.mode is None:
         mode = input(
@@ -195,6 +197,7 @@ def loop_ensemble(args):
         dirname = args.dirname
     if dirname == "":
         dirname = "data/ensemble"
+    args.dirname = dirname
     
     file_names = os.listdir(dirname)
     file_names = [a for a in file_names if a[-4:] == ".csv"]
@@ -240,12 +243,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--dirname", type=str, default=None, help="directory name")
     parser.add_argument("-o", "--output_name", type=str, default=None, help="output file name")
-    parser.add_argument("-t", "--target", type=float, default=None, help="target accuracy")
+    parser.add_argument("-a", "--accuracy", type=float, default=None, help="target accuracy")
     parser.add_argument("-v", "--vote", type=str, default="soft", help="voting method")
     parser.add_argument("-t", "--temperature", type=float, default=1.0, help="temperature for soft voting")
     parser.add_argument("-m", "--mode", type=str, default=None, help="mode of ensemble (v or i)")
     args = parser.parse_args()
-    if args.target is not None:
+    if args.accuracy is not None:
         loop_ensemble(args)
     else:
         interactive(args)
