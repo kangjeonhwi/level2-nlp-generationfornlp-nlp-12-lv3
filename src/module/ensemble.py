@@ -217,7 +217,7 @@ def loop_ensemble(args):
     file_names = cutted_dev
     acc = 0.0
     
-    while acc < args.target:
+    while acc < args.accuracy:
         weights = np.random.rand(len(file_names))
         output, acc = ensemble(weights, file_names, 'v', args)
     
