@@ -1,4 +1,5 @@
 import os
+import math
 import argparse
 import collections
 import numpy as np
@@ -27,22 +28,55 @@ def compute_metric(pred_df, eval_file: str = "data/dev.csv"):
     accuracy = correct / total
     return accuracy, correct, total
     
-def voting(weights, predictions):
+def voting(weights, predictions, args):
     ensembled = {}
-    for id, probs in predictions.items():
-        ensembled[id] = np.zeros(5)
-        for i, prob in enumerate(probs):
-            ensembled[id] += prob * (weights[i] / sum(weights))
-    
-    output_df = pd.DataFrame({"id" : list(ensembled.keys())})
-    for i in range(5):
-        output_df[f"prob_{i+1}"] = [ensembled[id][i] for id in ensembled]
-    output_df["answer"] = output_df.apply(lambda x: np.argmax(x[1:6]) + 1, axis=1)
-    return output_df
+    if args.vote == "soft":
+        for id, probs in predictions.items():
+            num_choices = len(probs[0])
+            ensembled[id] = np.zeros(num_choices)
+            for i, prob in enumerate(probs):
+                ensembled[id] += prob * (weights[i] / sum(weights))
+        
+        output_df = pd.DataFrame({"id" : list(ensembled.keys())})
+        for i in range(5):
+            output_df[f"prob_{i+1}"] = [ensembled[id][i] if i < len(ensembled[id]) else None 
+                                        for id in ensembled]
+        output_df["answer"] = output_df.apply(lambda x: np.argmax(x[1:6]) + 1, axis=1)
+        return output_df
+    else:
+        def custom_argmax(x):
+            # x[1:6] 구간에서만 보기
+            values = x[1:6] 
+            # 최대값 찾기
+            max_val = max(values)
+            print(max_val)
+            
+            # 최대값을 가진 위치들 중 weight가 가장 큰 위치 찾기
+            max_pos = max(
+                [(i, w) for i, (v, w) in enumerate(zip(values, weights)) if v == max_val],
+                key=lambda x: x[1]
+            )[0]
+            
+            # 1을 더해서 반환 (1-based index)
+            return max_pos + 1
+        for id, probs in predictions.items():
+            num_choices = len(probs[0])
+            ensembled[id] = np.zeros(num_choices)
+            for i, prob in enumerate(probs):
+                ensembled[id] += prob * (1 if weights[i] > 0 else 0)
+        
+        output_df = pd.DataFrame({"id" : list(ensembled.keys())})
+        for i in range(5):
+            output_df[f"prob_{i+1}"] = [ensembled[id][i] if i < len(ensembled[id]) else None 
+                                        for id in ensembled]
+        output_df["answer"] = output_df.apply(lambda x: custom_argmax(x), axis=1)
+        return output_df
     
 def use_soft(row, temperature: float = 1.0):
     arr = []
     for i in range(1, 6):
+        if math.isnan(row[f"logit_{i}"]):
+            continue
         arr.append(row[f"logit_{i}"])
     arr = np.array(arr) / temperature
     exp = np.exp(arr - np.max(arr))
@@ -52,7 +86,7 @@ def use_soft(row, temperature: float = 1.0):
 def use_hard(row):
     # tie-breaking: choose the smallest index
     arr = np.zeros(5)
-    answer = int(literal_eval(row["problems"])["answer"])
+    answer = int(row["answer"])
     arr[answer - 1] = 1
     return arr
     
@@ -76,7 +110,7 @@ def ensemble(weights, file_names, mode, args):
         if len(preds) != len(weights):
             print(f"! ! ! Warning: '{id}' has {len(preds)} predictions, but {len(weights)} weights are given. ! ! !")
     
-    output_df = voting(weights, predictions)
+    output_df = voting(weights, predictions, args)
     
     if mode == 'v':
         acc, correct, total = compute_metric(output_df)
