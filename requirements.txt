@@ -8,3 +8,4 @@ peft
 python-Box
 gitpython
 argparse
+bitsandbytes
