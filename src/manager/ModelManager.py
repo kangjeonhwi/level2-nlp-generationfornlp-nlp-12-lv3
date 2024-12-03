@@ -5,19 +5,19 @@ from peft import LoraConfig, AutoPeftModelForCausalLM
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM, SFTConfig
 from typing import Union, Type, List
 
+
 class ModelManager(ABC):
     def __init__(self, model_config, params):
         self.model_config = model_config
         self.model_name_or_checkpoint = model_config["name"]
         self.params = params
-        
+
         self.TEMPLATE = None
         self.tokenizer = None
         self.model = None
         self.trainer = None
         self.data_collator = None
-    
-    
+
     def formatting_prompts_func(self, example: dict) -> List[dict]:
         """입력으로 들어온 example을 이용하여 입력 프롬프트를 생성합니다.
 
@@ -36,7 +36,7 @@ class ModelManager(ABC):
                 )
             )
         return output_texts
-    
+
     def apply_chat_template_and_tokenize(self, element: dict) -> dict:
         """데이터셋의 각 element를 프롬프트로 변환하고 토크나이징합니다.
 
@@ -60,7 +60,7 @@ class ModelManager(ABC):
             "input_ids": outputs["input_ids"],
             "attention_mask": outputs["attention_mask"],
         }
-    
+
     @abstractmethod
     def set_model(self, AutoModel: Union[Type[AutoModelForCausalLM], Type[AutoPeftModelForCausalLM]] = AutoModelForCausalLM):
         """모델을 불러옵니다. 모델은 self.model에 할당합니다.
@@ -71,7 +71,7 @@ class ModelManager(ABC):
             - Type[AutoPeftModelForCausalLM]: LoRA가 학습된 모델을 불러올 때 사용합니다. (즉, 추론 단계)
         """
         pass
-    
+
     def get_model(self) -> Union[AutoModelForCausalLM, AutoPeftModelForCausalLM]:
         """모델을 반환합니다. (Pipeline 추론 단계에서 사용)
 
@@ -92,7 +92,7 @@ class ModelManager(ABC):
         self.tokenizer.pad_token = self.tokenizer.eos_token
         self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
         self.tokenizer.padding_side = 'right'
-        
+
     def set_data_collator(self):
         """DataCollator 객체를 생성합니다. 객체는 self.data_collator에 할당합니다.
         """
@@ -101,7 +101,7 @@ class ModelManager(ABC):
             response_template=response_template,
             tokenizer=self.tokenizer,
         )
-    
+
     def set_trainer(self, train_dataset: Dataset, eval_dataset: Dataset, compute_metrics, preprocess_logits_for_metrics) -> Trainer:
         """Trainer 객체를 생성합니다. 다음 인스턴스 변수들이 존재해야 합니다.
         - model: 훈련시킬 모델
@@ -110,7 +110,7 @@ class ModelManager(ABC):
         - data_collator: 데이터 콜레이터 함수
         - tokenizer: 토크나이저
         - params: 훈련에 필요한 하이퍼파라미터
-        
+
         Args:
             train_dataset (Dataset): 훈련 데이터셋
             eval_dataset (Dataset): 검증 데이터셋
@@ -163,14 +163,15 @@ class ModelManager(ABC):
             eval_dataset=eval_dataset,
             data_collator=self.data_collator,
             tokenizer=self.tokenizer,
-            compute_metrics=compute_metrics,
+            # compute_metrics=compute_metrics,
             preprocess_logits_for_metrics=preprocess_logits_for_metrics,
             peft_config=peft_config,
             args=sft_config
         )
-        
+
         print("-" * 30)
-        print("lr_scheduler_type : {}".format(self.params["lr_scheduler_type"]))
+        print("lr_scheduler_type : {}".format(
+            self.params["lr_scheduler_type"]))
         print("max_seq_length : {}".format(self.params["max_seq_length"]))
         print("train_batch_size : {}".format(self.params["train_batch_size"]))
         print("eval_batch_size : {}".format(self.params["eval_batch_size"]))
@@ -178,15 +179,15 @@ class ModelManager(ABC):
         print("learning_rate : {}".format(self.params["learning_rate"]))
         print("weight_decay : {}".format(self.params["weight_decay"]))
         print("-" * 30)
-        
+
     def train(self, *args, **kwargs):
         """모델을 훈련합니다.
         """
         self.trainer.train(*args, **kwargs)
-    
+
     def evaluate(self, *args, **kwargs) -> dict:
         """모델을 평가합니다.
-        
+
         Returns:
             dict: 평가 지표를 반환합니다.
         """
