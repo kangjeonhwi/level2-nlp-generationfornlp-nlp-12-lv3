@@ -25,6 +25,39 @@ PROMPT_QUESTION_PLUS = """지문:
 1, 2, 3, 4, 5 중에 하나를 정답으로 고르세요.
 정답:"""
 
+PROMPT_REASON_NO_QUESTION_PLUS = """지문:
+{paragraph}
+
+질문:
+{question}
+
+선택지:
+{choices}
+
+해설:
+{reason}
+
+1, 2, 3, 4, 5 중에 하나를 정답으로 고르세요.
+정답:"""
+
+PROMPT_REASON_QUESTION_PLUS = """지문:
+{paragraph}
+
+질문:
+{question}
+
+<보기>:
+{question_plus}
+
+선택지:
+{choices}
+
+해설:
+{reason}
+
+1, 2, 3, 4, 5 중에 하나를 정답으로 고르세요.
+정답:"""
+
 PROMPT_GEN_REASON_NO_QUESTION_PLUS = """지문:
 {paragraph}
 

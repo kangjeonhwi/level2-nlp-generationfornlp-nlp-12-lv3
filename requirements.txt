@@ -5,6 +5,7 @@ scikit-learn
 matplotlib
 evaluate
 peft
-json
 python-Box
+gitpython
 argparse
+bitsandbytes
