@@ -3,7 +3,7 @@
 ## 프로젝트 개요
 - 목표 : LLM을 활용하여 AI 모델이 어떻게 하면 얼마나 다양한 분야의 시험에서 우수한 성적을 받을 수 있을 지에 대해 연구해보고, 한국어와 수능형 문제에 특화된 모델을 개발하여 소규모 모델로 대형모델 수준의 성능을 달성하는 것.
 - 평가 기준 : Accuracy<span style="color:gray">  = 모델이 맞춘 수 / 전체 문제수</span>
-- [Warp-up Report](/assets/Wrap-up_Report.pdf)
+- [Wrap-up Report](/assets/Wrap-up_Report.pdf)
 - 네이버 커넥트재단 부스트캠프 AI Tech 7기 NLP 과정으로 3주간 진행했습니다. (2024.11.11 ~ 2024.11.28)
 
 ## 프로젝트 수행 절차
